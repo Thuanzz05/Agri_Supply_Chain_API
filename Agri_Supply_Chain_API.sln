@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdminService", "AdminServic
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gateway", "Gateway\Gateway.csproj", "{57B92370-FD12-4291-8F65-AB08D2022643}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService", "AuthService\AuthService.csproj", "{8EE839EF-D233-486C-9B98-7CC1E8C6F32B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{57B92370-FD12-4291-8F65-AB08D2022643}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{57B92370-FD12-4291-8F65-AB08D2022643}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{57B92370-FD12-4291-8F65-AB08D2022643}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8EE839EF-D233-486C-9B98-7CC1E8C6F32B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EE839EF-D233-486C-9B98-7CC1E8C6F32B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EE839EF-D233-486C-9B98-7CC1E8C6F32B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EE839EF-D233-486C-9B98-7CC1E8C6F32B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
