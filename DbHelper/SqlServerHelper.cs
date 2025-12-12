@@ -1,16 +1,19 @@
 ﻿using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DbHelper
 {
-    public class SqlServerHelper : IDbHelper
+    // SỬA LỖI: Implement cả IDbHelper và ILegacyDbHelper
+    public class SqlServerHelper : IDbHelper, ILegacyDbHelper
     {
         private readonly string _connectionString;
-        private const string ConnectionStringKey = "AgriSupplyChainDB";
+        // Đảm bảo ConnectionStringKey khớp với appsettings.json của bạn
+        private const string ConnectionStringKey = "DefaultConnection";
 
         // --- Constructor: Nhận IConfiguration qua DI ---
         public SqlServerHelper(IConfiguration configuration)
@@ -19,20 +22,8 @@ namespace DbHelper
                                 ?? throw new InvalidOperationException($"Connection string '{ConnectionStringKey}' not found.");
         }
 
-        // --- Phương thức Khởi tạo Tham số ---
-        public IDbDataParameter CreateParameter(string name, object value, DbType dbType, ParameterDirection direction = ParameterDirection.Input)
-        {
-            return new SqlParameter
-            {
-                ParameterName = name,
-                Value = value ?? DBNull.Value, // Xử lý giá trị null
-                DbType = dbType,
-                Direction = direction
-            };
-        }
-
-        // --- Thiết lập Command chung ---
-        private SqlCommand CreateCommand(SqlConnection connection, string commandText, IEnumerable<IDbDataParameter> parameters, CommandType commandType)
+        // --- Helper chung để tạo SqlCommand ---
+        private SqlCommand CreateCommand(SqlConnection connection, string commandText, IEnumerable<IDbDataParameter>? parameters, CommandType commandType)
         {
             var command = connection.CreateCommand();
             command.CommandText = commandText;
@@ -42,15 +33,20 @@ namespace DbHelper
             {
                 foreach (var param in parameters)
                 {
-                    // Chuyển IDbDataParameter về SqlParameter
                     command.Parameters.Add((SqlParameter)param);
                 }
             }
             return command;
         }
 
-        // --- 1. Thực thi NonQuery (Async) ---
-        public async Task<int> ExecuteNonQueryAsync(string commandText, IEnumerable<IDbDataParameter> parameters = null, CommandType commandType = CommandType.Text)
+        // --- TRIỂN KHAI IDbHelper (Async) ---
+
+        public IDbDataParameter CreateParameter(string name, object value, DbType dbType, ParameterDirection direction = ParameterDirection.Input)
+        {
+            return new SqlParameter { ParameterName = name, Value = value ?? DBNull.Value, DbType = dbType, Direction = direction };
+        }
+
+        public async Task<int> ExecuteNonQueryAsync(string commandText, IEnumerable<IDbDataParameter>? parameters = null, CommandType commandType = CommandType.Text)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -62,8 +58,7 @@ namespace DbHelper
             }
         }
 
-        // --- 2. Thực thi Reader (Async) ---
-        public async Task<DbDataReader> ExecuteReaderAsync(string commandText, IEnumerable<IDbDataParameter> parameters = null, CommandType commandType = CommandType.Text)
+        public async Task<DbDataReader> ExecuteReaderAsync(string commandText, IEnumerable<IDbDataParameter>? parameters = null, CommandType commandType = CommandType.Text)
         {
             var connection = new SqlConnection(_connectionString);
 
@@ -72,20 +67,17 @@ namespace DbHelper
                 await connection.OpenAsync();
                 using (var command = CreateCommand(connection, commandText, parameters, commandType))
                 {
-                    // CommandBehavior.CloseConnection đảm bảo Reader đóng kết nối khi nó được dispose
                     return await command.ExecuteReaderAsync(CommandBehavior.CloseConnection);
                 }
             }
             catch
             {
-                // Đảm bảo đóng kết nối nếu có lỗi xảy ra
                 if (connection.State == ConnectionState.Open) connection.Close();
                 throw;
             }
         }
 
-        // --- 3. Thực thi Scalar (Async) ---
-        public async Task<object> ExecuteScalarAsync(string commandText, IEnumerable<IDbDataParameter> parameters = null, CommandType commandType = CommandType.Text)
+        public async Task<object> ExecuteScalarAsync(string commandText, IEnumerable<IDbDataParameter>? parameters = null, CommandType commandType = CommandType.Text)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -95,6 +87,62 @@ namespace DbHelper
                     return await command.ExecuteScalarAsync();
                 }
             }
+        }
+
+        // --- TRIỂN KHAI ILegacyDbHelper (Đồng bộ/Fix lỗi triển khai) ---
+
+        // SỬA LỖI: Triển khai hàm này với chữ ký chính xác
+        public DataTable ExecuteSProcedureReturnDataTable(out string msgError, string sprocedureName, params object[] paramObjects)
+        {
+            msgError = "";
+            DataTable tb = new DataTable();
+
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    SqlCommand cmd = new SqlCommand { CommandType = CommandType.StoredProcedure, CommandText = sprocedureName };
+                    connection.Open();
+                    cmd.Connection = connection;
+
+                    // Logic xử lý tham số (params object[])
+                    int parameterInput = (paramObjects.Length) / 2;
+                    int j = 0;
+                    for (int i = 0; i < parameterInput; i++)
+                    {
+                        string paramName = Convert.ToString(paramObjects[j++])?.Trim() ?? string.Empty;
+                        object? value = paramObjects[j++]; // Có thể là null
+
+                        if (paramName.ToLower().Contains("json"))
+                        {
+                            cmd.Parameters.Add(new SqlParameter()
+                            {
+                                ParameterName = paramName,
+                                Value = value ?? DBNull.Value,
+                                SqlDbType = SqlDbType.NVarChar
+                            });
+                        }
+                        else
+                        {
+                            // SỬA: Thêm tham số bằng cú pháp SqlParameter
+                            cmd.Parameters.Add(new SqlParameter(paramName, value ?? DBNull.Value));
+                        }
+                    }
+
+                    // Thực thi và Fill DataTable
+                    using (SqlDataAdapter ad = new SqlDataAdapter(cmd))
+                    {
+                        ad.Fill(tb);
+                    }
+                    cmd.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    tb = null;
+                    msgError = exception.ToString();
+                }
+            }
+            return tb;
         }
     }
 }
