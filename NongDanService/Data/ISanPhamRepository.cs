@@ -1,13 +1,13 @@
-﻿using NongDanService.Models.Entities;
+﻿using NongDanService.Models.DTOs;
 
 namespace NongDanService.Data
 {
     public interface ISanPhamRepository
     {
-        Task<List<SanPham>> GetAll();
-        Task<SanPham?> GetById(int id);
-        Task Create(SanPham sanPham);
-        Task Update(SanPham sanPham);
-        Task Delete(SanPham sanPham);
+        List<SanPhamDTO> GetAll();
+        SanPhamDTO? GetById(int id);
+        int Create(SanPhamCreateDTO dto);
+        bool Update(int id, SanPhamUpdateDTO dto);
+        bool Delete(int id);
     }
 }

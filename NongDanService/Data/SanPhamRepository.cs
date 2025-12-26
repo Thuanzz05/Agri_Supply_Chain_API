@@ -1,43 +1,108 @@
-﻿using Microsoft.EntityFrameworkCore;
-using NongDanService.Models.Entities;
+﻿using Microsoft.Data.SqlClient;
+using NongDanService.Models.DTOs;
 
 namespace NongDanService.Data
 {
     public class SanPhamRepository : ISanPhamRepository
     {
-        private readonly BtlHdv1Context _context;
+        private readonly string _connectionString;
 
-        public SanPhamRepository(BtlHdv1Context context)
+        public SanPhamRepository(IConfiguration config)
         {
-            _context = context;
+            _connectionString = config.GetConnectionString("DefaultConnection");
         }
 
-        public async Task<List<SanPham>> GetAll()
+        public List<SanPhamDTO> GetAll()
         {
-            return await _context.SanPhams.ToListAsync();
+            var list = new List<SanPhamDTO>();
+
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand("SELECT * FROM SanPham", conn);
+
+            conn.Open();
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                list.Add(new SanPhamDTO
+                {
+                    MaSanPham = (int)reader["MaSanPham"],
+                    TenSanPham = reader["TenSanPham"].ToString()!,
+                    DonViTinh = reader["DonViTinh"].ToString()!,
+                    MoTa = reader["MoTa"] as string,
+                    NgayTao = reader["NgayTao"] as DateTime?
+                });
+            }
+
+            return list;
         }
 
-        public async Task<SanPham?> GetById(int id)
+        public SanPhamDTO? GetById(int id)
         {
-            return await _context.SanPhams.FindAsync(id);
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(
+                "SELECT * FROM SanPham WHERE MaSanPham=@id", conn);
+
+            cmd.Parameters.AddWithValue("@id", id);
+
+            conn.Open();
+            using var reader = cmd.ExecuteReader();
+
+            if (!reader.Read()) return null;
+
+            return new SanPhamDTO
+            {
+                MaSanPham = (int)reader["MaSanPham"],
+                TenSanPham = reader["TenSanPham"].ToString()!,
+                DonViTinh = reader["DonViTinh"].ToString()!,
+                MoTa = reader["MoTa"] as string,
+                NgayTao = reader["NgayTao"] as DateTime?
+            };
         }
 
-        public async Task Create(SanPham sanPham)
+        public int Create(SanPhamCreateDTO dto)
         {
-            _context.SanPhams.Add(sanPham);
-            await _context.SaveChangesAsync();
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                INSERT INTO SanPham (TenSanPham, DonViTinh, MoTa)
+                OUTPUT INSERTED.MaSanPham
+                VALUES (@Ten, @DonVi, @MoTa)", conn);
+
+            cmd.Parameters.AddWithValue("@Ten", dto.TenSanPham);
+            cmd.Parameters.AddWithValue("@DonVi", dto.DonViTinh);
+            cmd.Parameters.AddWithValue("@MoTa", (object?)dto.MoTa ?? DBNull.Value);
+
+            conn.Open();
+            return (int)cmd.ExecuteScalar();
         }
 
-        public async Task Update(SanPham sanPham)
+        public bool Update(int id, SanPhamUpdateDTO dto)
         {
-            _context.SanPhams.Update(sanPham);
-            await _context.SaveChangesAsync();
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                UPDATE SanPham
+                SET TenSanPham=@Ten, DonViTinh=@DonVi, MoTa=@MoTa
+                WHERE MaSanPham=@Id", conn);
+
+            cmd.Parameters.AddWithValue("@Id", id);
+            cmd.Parameters.AddWithValue("@Ten", dto.TenSanPham);
+            cmd.Parameters.AddWithValue("@DonVi", dto.DonViTinh);
+            cmd.Parameters.AddWithValue("@MoTa", (object?)dto.MoTa ?? DBNull.Value);
+
+            conn.Open();
+            return cmd.ExecuteNonQuery() > 0;
         }
 
-        public async Task Delete(SanPham sanPham)
+        public bool Delete(int id)
         {
-            _context.SanPhams.Remove(sanPham);
-            await _context.SaveChangesAsync();
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(
+                "DELETE FROM SanPham WHERE MaSanPham=@id", conn);
+
+            cmd.Parameters.AddWithValue("@id", id);
+
+            conn.Open();
+            return cmd.ExecuteNonQuery() > 0;
         }
     }
 }
