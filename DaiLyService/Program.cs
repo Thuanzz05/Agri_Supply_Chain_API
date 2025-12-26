@@ -1,8 +1,5 @@
-﻿using DbHelper;
-using DaiLyService.Data;
+﻿using DaiLyService.Data;
 using DaiLyService.Services;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,19 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 // DEPENDENCY INJECTION
 // ====================
 
-// 1. Đăng ký SqlServerHelper: Đăng ký chính lớp triển khai để nó có thể được tạo (và tự nhận IConfiguration)
-builder.Services.AddScoped<SqlServerHelper>();
-
-
-// 2. Đăng ký các Interface trỏ đến cùng một lớp triển khai (SqlServerHelper)
-// Fix lỗi: Sau khi SqlServerHelper kế thừa ILegacyDbHelper, dòng này chạy đúng
-builder.Services.AddScoped<ILegacyDbHelper>(provider => provider.GetRequiredService<SqlServerHelper>());
-builder.Services.AddScoped<IDbHelper>(provider => provider.GetRequiredService<SqlServerHelper>());
-// 3. Đăng ký Repository
+// Đăng ký Repository
 builder.Services.AddScoped<IDaiLyRepository, DaiLyRepository>();
 
-// 4. Đăng ký Service (Giả định bạn đã đổi tên thành DaiLyBusinessService)
-// *Lưu ý: Nếu tên Service của bạn là DaiLyService, bạn cần sửa lại tên trong dòng này.*
+// Đăng ký Service
 builder.Services.AddScoped<IDaiLyService, DaiLyBusinessService>();
 
 

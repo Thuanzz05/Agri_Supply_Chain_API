@@ -1,15 +1,14 @@
-﻿using DaiLyService.Models.Entities;
-using DaiLyService.Models.DTOs;
+﻿using DaiLyService.Models.DTOs;
 
 namespace DaiLyService.Data
 {
     public interface IDaiLyRepository
     {
-        Task<List<DaiLyPhanHoi>> GetAllAsync();
-        Task<DaiLyPhanHoi?> GetByIdAsync(int maDaiLy);
-        Task<int> CreateAsync(DaiLyTaoMoi model);
-        Task<bool> UpdateAsync(int maDaiLy, DaiLy entity);
-        Task<bool> DeleteAsync(int maDaiLy);
-        Task<List<DaiLyPhanHoi>> SearchAsync(string? tenDaiLy, string? soDienThoai);
+        List<DaiLyPhanHoi> GetAll();
+        DaiLyPhanHoi? GetById(int maDaiLy);
+        int Create(DaiLyTaoMoi dto);
+        bool Update(int maDaiLy, DaiLyTaoMoi dto);
+        bool Delete(int maDaiLy);
+        List<DaiLyPhanHoi> Search(string? tenDaiLy, string? soDienThoai);
     }
 }
