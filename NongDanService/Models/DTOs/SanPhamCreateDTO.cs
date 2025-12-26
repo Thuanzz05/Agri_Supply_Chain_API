@@ -2,8 +2,8 @@
 {
     public class SanPhamCreateDTO
     {
-        public string TenSanPham { get; set; } = null!;
-        public string DonViTinh { get; set; } = null!;
+        public string TenSanPham { get; set; } = "";
+        public string DonViTinh { get; set; } = "";
         public string? MoTa { get; set; }
     }
 }
