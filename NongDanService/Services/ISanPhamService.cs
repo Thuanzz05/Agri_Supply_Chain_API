@@ -4,11 +4,10 @@ namespace NongDanService.Services
 {
     public interface ISanPhamService
     {
-        Task<List<SanPhamDTO>> GetAll();
-        Task<SanPhamDTO?> GetById(int id);
-        Task<int> Create(SanPhamCreateDTO dto);
-        Task<bool> Update(int id, SanPhamUpdateDTO dto);
-        Task<bool> Delete(int id);
+        List<SanPhamDTO> GetAll();
+        SanPhamDTO? GetById(int id);
+        int Create(SanPhamCreateDTO dto);
+        bool Update(int id, SanPhamUpdateDTO dto);
+        bool Delete(int id);
     }
-
 }
