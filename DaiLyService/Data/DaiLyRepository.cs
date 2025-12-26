@@ -1,161 +1,149 @@
-﻿using DaiLyService.Models.Entities;
+﻿using Microsoft.Data.SqlClient;
 using DaiLyService.Models.DTOs;
-using System.Data;
-using DbHelper;
-using System.Linq;
-using System;
-using System.Threading.Tasks;
 
 namespace DaiLyService.Data
 {
     public class DaiLyRepository : IDaiLyRepository
     {
-        // SỬA: Dùng ILegacyDbHelper để gọi hàm đồng bộ ExecuteSProcedureReturnDataTable
-        private readonly ILegacyDbHelper _dbHelper;
+        private readonly string _connectionString;
 
-        // Khai báo constructor mới
-        public DaiLyRepository(ILegacyDbHelper dbHelper)
+        public DaiLyRepository(IConfiguration config)
         {
-            _dbHelper = dbHelper;
+            _connectionString = config.GetConnectionString("DefaultConnection");
         }
 
-        // Ánh xạ DataTable sang DTO (Giữ nguyên)
-        private List<DaiLyPhanHoi> MapDataTableToDaiLyPhanHoi(DataTable? table)
+        public List<DaiLyPhanHoi> GetAll()
         {
-            var results = new List<DaiLyPhanHoi>();
-            if (table == null || table.Rows.Count == 0) return results;
+            var list = new List<DaiLyPhanHoi>();
 
-            foreach (DataRow row in table.Rows)
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                SELECT d.MaDaiLy, d.TenDaiLy, d.SoDienThoai, d.Email, d.DiaChi,
+                       t.TenDangNhap, t.TrangThai
+                FROM DaiLy d
+                LEFT JOIN TaiKhoan t ON d.MaTaiKhoan = t.MaTaiKhoan", conn);
+
+            conn.Open();
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
             {
-                results.Add(new DaiLyPhanHoi
-                {
-                    MaDaiLy = row["MaDaiLy"] != DBNull.Value ? Convert.ToInt32(row["MaDaiLy"]) : 0,
-                    TenDaiLy = row["TenDaiLy"] != DBNull.Value ? row["TenDaiLy"].ToString() : null,
-                    SoDienThoai = row["SoDienThoai"] != DBNull.Value ? row["SoDienThoai"].ToString() : null,
-                    Email = row["Email"] != DBNull.Value ? row["Email"].ToString() : null,
-                    DiaChi = row["DiaChi"] != DBNull.Value ? row["DiaChi"].ToString() : null,
-                    TenDangNhap = row["TenDangNhap"] != DBNull.Value ? row["TenDangNhap"].ToString() : null,
-                    TrangThai = row["TrangThai"] != DBNull.Value ? row["TrangThai"].ToString() : null
-                });
+                list.Add(MapToDto(reader));
             }
-            return results;
+
+            return list;
         }
 
-        // Helper async wrapper
-        private Task<DataTable> ExecuteSProcedureReturnDataTableAsync(
-            string sprocedureName,
-            params object[] paramObjects)
+        public DaiLyPhanHoi? GetById(int maDaiLy)
         {
-            return Task.Run(() =>
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                SELECT d.MaDaiLy, d.TenDaiLy, d.SoDienThoai, d.Email, d.DiaChi,
+                       t.TenDangNhap, t.TrangThai
+                FROM DaiLy d
+                LEFT JOIN TaiKhoan t ON d.MaTaiKhoan = t.MaTaiKhoan
+                WHERE d.MaDaiLy = @MaDaiLy", conn);
+
+            cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
+
+            conn.Open();
+            using var reader = cmd.ExecuteReader();
+
+            if (!reader.Read()) return null;
+
+            return MapToDto(reader);
+        }
+
+        public int Create(DaiLyTaoMoi dto)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                INSERT INTO DaiLy (MaTaiKhoan, TenDaiLy, SoDienThoai, Email, DiaChi)
+                OUTPUT INSERTED.MaDaiLy
+                VALUES (@MaTaiKhoan, @TenDaiLy, @SoDienThoai, @Email, @DiaChi)", conn);
+
+            cmd.Parameters.AddWithValue("@MaTaiKhoan", dto.MaTaiKhoan);
+            cmd.Parameters.AddWithValue("@TenDaiLy", dto.TenDaiLy);
+            cmd.Parameters.AddWithValue("@SoDienThoai", (object?)dto.SoDienThoai ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Email", (object?)dto.Email ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@DiaChi", (object?)dto.DiaChi ?? DBNull.Value);
+
+            conn.Open();
+            return (int)cmd.ExecuteScalar();
+        }
+
+        public bool Update(int maDaiLy, DaiLyTaoMoi dto)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                UPDATE DaiLy
+                SET TenDaiLy = @TenDaiLy,
+                    SoDienThoai = @SoDienThoai,
+                    Email = @Email,
+                    DiaChi = @DiaChi
+                WHERE MaDaiLy = @MaDaiLy", conn);
+
+            cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
+            cmd.Parameters.AddWithValue("@TenDaiLy", dto.TenDaiLy);
+            cmd.Parameters.AddWithValue("@SoDienThoai", (object?)dto.SoDienThoai ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Email", (object?)dto.Email ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@DiaChi", (object?)dto.DiaChi ?? DBNull.Value);
+
+            conn.Open();
+            return cmd.ExecuteNonQuery() > 0;
+        }
+
+        public bool Delete(int maDaiLy)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(
+                "DELETE FROM DaiLy WHERE MaDaiLy = @MaDaiLy", conn);
+
+            cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
+
+            conn.Open();
+            return cmd.ExecuteNonQuery() > 0;
+        }
+
+        public List<DaiLyPhanHoi> Search(string? tenDaiLy, string? soDienThoai)
+        {
+            var list = new List<DaiLyPhanHoi>();
+
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                SELECT d.MaDaiLy, d.TenDaiLy, d.SoDienThoai, d.Email, d.DiaChi,
+                       t.TenDangNhap, t.TrangThai
+                FROM DaiLy d
+                LEFT JOIN TaiKhoan t ON d.MaTaiKhoan = t.MaTaiKhoan
+                WHERE (@TenDaiLy IS NULL OR d.TenDaiLy LIKE '%' + @TenDaiLy + '%')
+                  AND (@SoDienThoai IS NULL OR d.SoDienThoai LIKE '%' + @SoDienThoai + '%')", conn);
+
+            cmd.Parameters.AddWithValue("@TenDaiLy", (object?)tenDaiLy ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@SoDienThoai", (object?)soDienThoai ?? DBNull.Value);
+
+            conn.Open();
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
             {
-                string msgError = "";
-
-                // GỌI HÀM TRỰC TIẾP TỪ ILegacyDbHelper
-                DataTable dt = _dbHelper.ExecuteSProcedureReturnDataTable(out msgError, sprocedureName, paramObjects);
-
-                if (!string.IsNullOrEmpty(msgError))
-                {
-                    throw new Exception($"Lỗi thực thi SP '{sprocedureName}': {msgError}");
-                }
-
-                // Trả về DataTable (có thể là null)
-                return dt ?? new DataTable();
-            });
-        }
-
-        // 1. GET ALL
-        public async Task<List<DaiLyPhanHoi>> GetAllAsync()
-        {
-            DataTable dt = await ExecuteSProcedureReturnDataTableAsync("sp_DaiLy_GetAll");
-            return MapDataTableToDaiLyPhanHoi(dt);
-        }
-
-        // 2. GET BY ID
-        public async Task<DaiLyPhanHoi?> GetByIdAsync(int maDaiLy)
-        {
-            DataTable dt = await ExecuteSProcedureReturnDataTableAsync(
-                "sp_DaiLy_GetById",
-                "@MaDaiLy", maDaiLy
-            );
-            return MapDataTableToDaiLyPhanHoi(dt).FirstOrDefault();
-        }
-
-        // 3. CREATE
-        public async Task<int> CreateAsync(DaiLyTaoMoi model)
-        {
-            DataTable dtResult = await ExecuteSProcedureReturnDataTableAsync(
-                "sp_DaiLy_Create",
-                "@MaTaiKhoan", model.MaTaiKhoan,
-                "@TenDaiLy", model.TenDaiLy,
-                "@SoDienThoai", model.SoDienThoai,
-                "@Email", model.Email,
-                "@DiaChi", model.DiaChi
-            );
-
-            if (dtResult.Rows.Count > 0)
-            {
-                var row = dtResult.Rows[0];
-                var status = row["Status"] != DBNull.Value ? row["Status"].ToString() : null;
-
-                if (status == "SUCCESS")
-                {
-                    return row["MaDaiLy"] != DBNull.Value ? Convert.ToInt32(row["MaDaiLy"]) : 0;
-                }
-                else
-                {
-                    string message = row["Message"] != DBNull.Value ? row["Message"].ToString() ?? "Lỗi không xác định" : "Lỗi không xác định";
-                    throw new Exception($"Lỗi nghiệp vụ khi tạo: {message}");
-                }
+                list.Add(MapToDto(reader));
             }
-            throw new Exception("Không nhận được kết quả từ stored procedure");
+
+            return list;
         }
 
-        // 4. UPDATE
-        public async Task<bool> UpdateAsync(int maDaiLy, DaiLy entity)
+        private DaiLyPhanHoi MapToDto(SqlDataReader reader)
         {
-            DataTable dtResult = await ExecuteSProcedureReturnDataTableAsync(
-                "sp_DaiLy_Update",
-                "@MaDaiLy", maDaiLy,
-                "@TenDaiLy", entity.TenDaiLy,
-                "@SoDienThoai", entity.SoDienThoai,
-                "@Email", entity.Email,
-                "@DiaChi", entity.DiaChi
-            );
-
-            if (dtResult.Rows.Count > 0 && dtResult.Rows[0]["Status"].ToString() == "ERROR")
+            return new DaiLyPhanHoi
             {
-                string message = dtResult.Rows[0]["Message"] != DBNull.Value ? dtResult.Rows[0]["Message"].ToString() ?? "Lỗi không xác định" : "Lỗi không xác định";
-                throw new Exception($"Lỗi Repository Update: {message}");
-            }
-            return true;
-        }
-
-        // 5. DELETE
-        public async Task<bool> DeleteAsync(int maDaiLy)
-        {
-            DataTable dtResult = await ExecuteSProcedureReturnDataTableAsync(
-                "sp_DaiLy_Delete",
-                "@MaDaiLy", maDaiLy
-            );
-
-            if (dtResult.Rows.Count > 0 && dtResult.Rows[0]["Status"].ToString() == "ERROR")
-            {
-                string message = dtResult.Rows[0]["Message"] != DBNull.Value ? dtResult.Rows[0]["Message"].ToString() ?? "Lỗi không xác định" : "Lỗi không xác định";
-                throw new Exception($"Lỗi Repository Delete: {message}");
-            }
-            return true;
-        }
-
-        // 6. SEARCH
-        public async Task<List<DaiLyPhanHoi>> SearchAsync(string? tenDaiLy, string? soDienThoai)
-        {
-            DataTable dt = await ExecuteSProcedureReturnDataTableAsync(
-                "sp_DaiLy_Search",
-                "@TenDaiLy", tenDaiLy,
-                "@SoDienThoai", soDienThoai
-            );
-
-            return MapDataTableToDaiLyPhanHoi(dt);
+                MaDaiLy = (int)reader["MaDaiLy"],
+                TenDaiLy = reader["TenDaiLy"] as string,
+                SoDienThoai = reader["SoDienThoai"] as string,
+                Email = reader["Email"] as string,
+                DiaChi = reader["DiaChi"] as string,
+                TenDangNhap = reader["TenDangNhap"] as string,
+                TrangThai = reader["TrangThai"] as string
+            };
         }
     }
 }
