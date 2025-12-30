@@ -17,7 +17,7 @@ public class SanPhamController : ControllerBase
     /// Lấy tất cả sản phẩm
     /// </summary>
     /// <returns>Danh sách sản phẩm</returns>
-    [HttpGet]
+    [HttpGet("get-all")]
     public IActionResult GetAll()
     {
         try
@@ -46,7 +46,7 @@ public class SanPhamController : ControllerBase
     /// </summary>
     /// <param name="id">Mã sản phẩm</param>
     /// <returns>Thông tin sản phẩm</returns>
-    [HttpGet("{id}")]
+    [HttpGet("get-by-id/{id}")]
     public IActionResult GetById(int id)
     {
         try
@@ -92,7 +92,7 @@ public class SanPhamController : ControllerBase
     /// </summary>
     /// <param name="dto">Thông tin sản phẩm</param>
     /// <returns>ID sản phẩm mới</returns>
-    [HttpPost]
+    [HttpPost("create")]
     public IActionResult Create([FromBody] SanPhamCreateDTO dto)
     {
         try
@@ -108,7 +108,7 @@ public class SanPhamController : ControllerBase
             }
 
             var newId = _sanPhamService.Create(dto);
-            return CreatedAtAction(nameof(GetById), new { id = newId }, new
+            return Ok(new
             {
                 success = true,
                 message = "Tạo sản phẩm thành công",
@@ -131,7 +131,7 @@ public class SanPhamController : ControllerBase
     /// <param name="id">Mã sản phẩm</param>
     /// <param name="dto">Thông tin cập nhật</param>
     /// <returns>Kết quả cập nhật</returns>
-    [HttpPut("{id}")]
+    [HttpPut("update/{id}")]
     public IActionResult Update(int id, [FromBody] SanPhamUpdateDTO dto)
     {
         try
@@ -186,7 +186,7 @@ public class SanPhamController : ControllerBase
     /// </summary>
     /// <param name="id">Mã sản phẩm</param>
     /// <returns>Kết quả xóa</returns>
-    [HttpDelete("{id}")]
+    [HttpDelete("delete/{id}")]
     public IActionResult Delete(int id)
     {
         try
