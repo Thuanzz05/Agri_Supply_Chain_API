@@ -4,3 +4,7 @@ GET {{SieuThiService_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+### Lấy đơn hàng theo mã siêu thị
+GET {{SieuThiService_HostAddress}}/api/DonHangSieuThi/sieu-thi/1
+Accept: application/json
