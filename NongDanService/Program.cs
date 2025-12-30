@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using NongDanService.Models.Entities;
 using NongDanService.Data;
 using NongDanService.Services;
 
@@ -9,17 +7,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services
 // =====================
 
-// DbContext
-builder.Services.AddDbContext<BtlHdv1Context>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")
-    ));
-
 // Repository
 builder.Services.AddScoped<ISanPhamRepository, SanPhamRepository>();
+builder.Services.AddScoped<INongDanRepository, NongDanRepository>();
 
 // Service
 builder.Services.AddScoped<ISanPhamService, SanPhamService>();
+builder.Services.AddScoped<INongDanService, NongDanService.Services.NongDanService>();
 
 // Controllers
 builder.Services.AddControllers();

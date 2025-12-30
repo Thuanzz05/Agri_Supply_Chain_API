@@ -13,47 +13,216 @@ public class SanPhamController : ControllerBase
         _sanPhamService = sanPhamService;
     }
 
-    // GET: api/san-pham/get-all
-    [HttpGet("get-all")]
+    /// <summary>
+    /// Lấy tất cả sản phẩm
+    /// </summary>
+    /// <returns>Danh sách sản phẩm</returns>
+    [HttpGet]
     public IActionResult GetAll()
     {
-        var data = _sanPhamService.GetAll();
-        return Ok(data);
-    }
-
-    // POST: api/san-pham/create
-    [HttpPost("create")]
-    public IActionResult Create(SanPhamCreateDTO dto)
-    {
-        var newId = _sanPhamService.Create(dto);
-        return Ok(newId);
-    }
-
-    // PUT: api/san-pham/update/5
-    [HttpPut("update/{id}")]
-    public IActionResult Update(int id, SanPhamUpdateDTO dto)
-    {
-        bool result = _sanPhamService.Update(id, dto);
-
-        if (result == false)
+        try
         {
-            return NotFound();
+            var data = _sanPhamService.GetAll();
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách sản phẩm thành công",
+                data = data,
+                count = data.Count
+            });
         }
-
-        return Ok();
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Lỗi server: " + ex.Message
+            });
+        }
     }
 
-    // DELETE: api/san-pham/delete/5
-    [HttpDelete("delete/{id}")]
+    /// <summary>
+    /// Lấy sản phẩm theo ID
+    /// </summary>
+    /// <param name="id">Mã sản phẩm</param>
+    /// <returns>Thông tin sản phẩm</returns>
+    [HttpGet("{id}")]
+    public IActionResult GetById(int id)
+    {
+        try
+        {
+            if (id <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID sản phẩm không hợp lệ"
+                });
+            }
+
+            var data = _sanPhamService.GetById(id);
+            if (data == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Không tìm thấy sản phẩm"
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy thông tin sản phẩm thành công",
+                data = data
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Lỗi server: " + ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Tạo sản phẩm mới
+    /// </summary>
+    /// <param name="dto">Thông tin sản phẩm</param>
+    /// <returns>ID sản phẩm mới</returns>
+    [HttpPost]
+    public IActionResult Create([FromBody] SanPhamCreateDTO dto)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Dữ liệu không hợp lệ",
+                    errors = ModelState
+                });
+            }
+
+            var newId = _sanPhamService.Create(dto);
+            return CreatedAtAction(nameof(GetById), new { id = newId }, new
+            {
+                success = true,
+                message = "Tạo sản phẩm thành công",
+                data = new { id = newId }
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Lỗi server: " + ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật sản phẩm
+    /// </summary>
+    /// <param name="id">Mã sản phẩm</param>
+    /// <param name="dto">Thông tin cập nhật</param>
+    /// <returns>Kết quả cập nhật</returns>
+    [HttpPut("{id}")]
+    public IActionResult Update(int id, [FromBody] SanPhamUpdateDTO dto)
+    {
+        try
+        {
+            if (id <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID sản phẩm không hợp lệ"
+                });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Dữ liệu không hợp lệ",
+                    errors = ModelState
+                });
+            }
+
+            bool result = _sanPhamService.Update(id, dto);
+            if (!result)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Không tìm thấy sản phẩm để cập nhật"
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Cập nhật sản phẩm thành công"
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Lỗi server: " + ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Xóa sản phẩm
+    /// </summary>
+    /// <param name="id">Mã sản phẩm</param>
+    /// <returns>Kết quả xóa</returns>
+    [HttpDelete("{id}")]
     public IActionResult Delete(int id)
     {
-        bool result = _sanPhamService.Delete(id);
-
-        if (result == false)
+        try
         {
-            return NotFound();
-        }
+            if (id <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID sản phẩm không hợp lệ"
+                });
+            }
 
-        return Ok();
+            bool result = _sanPhamService.Delete(id);
+            if (!result)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Không tìm thấy sản phẩm để xóa"
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Xóa sản phẩm thành công"
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Lỗi server: " + ex.Message
+            });
+        }
     }
 }
