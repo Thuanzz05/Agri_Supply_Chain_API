@@ -9,9 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Đăng ký Repository
 builder.Services.AddScoped<IDaiLyRepository, DaiLyRepository>();
+builder.Services.AddScoped<IKiemDinhRepository, KiemDinhRepository>();
 
 // Đăng ký Service
 builder.Services.AddScoped<IDaiLyService, DaiLyBusinessService>();
+builder.Services.AddScoped<IKiemDinhService, KiemDinhService>();
 
 
 // ====================
