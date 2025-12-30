@@ -4,7 +4,7 @@ using NongDanService.Services;
 
 namespace NongDanService.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/nong-dan")]
     [ApiController]
     public class NongDanController : ControllerBase
     {
@@ -15,50 +15,217 @@ namespace NongDanService.Controllers
             _nongDanService = nongDanService;
         }
 
-        // GET: api/nongdan
-        [HttpGet]
+        /// <summary>
+        /// Lấy tất cả nông dân
+        /// </summary>
+        /// <returns>Danh sách nông dân</returns>
+        [HttpGet("get-all")]
         public IActionResult GetAll()
         {
-            var data = _nongDanService.GetAll();
-            return Ok(data);
+            try
+            {
+                var data = _nongDanService.GetAll();
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy danh sách nông dân thành công",
+                    data = data,
+                    count = data.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi server: " + ex.Message
+                });
+            }
         }
 
-        // GET: api/nongdan/5
-        [HttpGet("{id}")]
+        /// <summary>
+        /// Lấy nông dân theo ID
+        /// </summary>
+        /// <param name="id">Mã nông dân</param>
+        /// <returns>Thông tin nông dân</returns>
+        [HttpGet("get-by-id/{id}")]
         public IActionResult GetById(int id)
         {
-            var data = _nongDanService.GetById(id);
-            if (data == null)
-                return NotFound();
-            return Ok(data);
+            try
+            {
+                if (id <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "ID nông dân không hợp lệ"
+                    });
+                }
+
+                var data = _nongDanService.GetById(id);
+                if (data == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy nông dân"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy thông tin nông dân thành công",
+                    data = data
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi server: " + ex.Message
+                });
+            }
         }
 
-        // POST: api/nongdan
-        [HttpPost]
-        public IActionResult Create(NongDanCreateDTO dto)
+        /// <summary>
+        /// Tạo nông dân mới
+        /// </summary>
+        /// <param name="dto">Thông tin nông dân</param>
+        /// <returns>ID nông dân mới</returns>
+        [HttpPost("create")]
+        public IActionResult Create([FromBody] NongDanCreateDTO dto)
         {
-            var newId = _nongDanService.Create(dto);
-            return Ok(new { Id = newId });
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Dữ liệu không hợp lệ",
+                        errors = ModelState
+                    });
+                }
+
+                var newId = _nongDanService.Create(dto);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Tạo nông dân thành công",
+                    data = new { id = newId }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi server: " + ex.Message
+                });
+            }
         }
 
-        // PUT: api/nongdan/5
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, NongDanUpdateDTO dto)
+        /// <summary>
+        /// Cập nhật nông dân
+        /// </summary>
+        /// <param name="id">Mã nông dân</param>
+        /// <param name="dto">Thông tin cập nhật</param>
+        /// <returns>Kết quả cập nhật</returns>
+        [HttpPut("update/{id}")]
+        public IActionResult Update(int id, [FromBody] NongDanUpdateDTO dto)
         {
-            bool result = _nongDanService.Update(id, dto);
-            if (!result)
-                return NotFound();
-            return Ok();
+            try
+            {
+                if (id <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "ID nông dân không hợp lệ"
+                    });
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Dữ liệu không hợp lệ",
+                        errors = ModelState
+                    });
+                }
+
+                bool result = _nongDanService.Update(id, dto);
+                if (!result)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy nông dân để cập nhật"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Cập nhật nông dân thành công"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi server: " + ex.Message
+                });
+            }
         }
 
-        // DELETE: api/nongdan/5
-        [HttpDelete("{id}")]
+        /// <summary>
+        /// Xóa nông dân
+        /// </summary>
+        /// <param name="id">Mã nông dân</param>
+        /// <returns>Kết quả xóa</returns>
+        [HttpDelete("delete/{id}")]
         public IActionResult Delete(int id)
         {
-            bool result = _nongDanService.Delete(id);
-            if (!result)
-                return NotFound();
-            return Ok();
+            try
+            {
+                if (id <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "ID nông dân không hợp lệ"
+                    });
+                }
+
+                bool result = _nongDanService.Delete(id);
+                if (!result)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy nông dân để xóa"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Xóa nông dân thành công"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi server: " + ex.Message
+                });
+            }
         }
     }
 }
