@@ -9,7 +9,7 @@ namespace NongDanService.Data
 
         public SanPhamRepository(IConfiguration config)
         {
-            _connectionString = config.GetConnectionString("DefaultConnection");
+            _connectionString = config.GetConnectionString("DefaultConnection")!;
         }
 
         public List<SanPhamDTO> GetAll()
