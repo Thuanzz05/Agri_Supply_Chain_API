@@ -1,6 +1,17 @@
+using Microsoft.EntityFrameworkCore;
+using SieuThiService.Data;
+using SieuThiService.Models.Entities;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddDbContext<BtlHdv1Context>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseSqlServer(connectionString);
+});
+
+builder.Services.AddScoped<ISieuThiRepository, SieuThiRepository>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
