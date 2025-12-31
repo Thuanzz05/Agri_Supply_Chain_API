@@ -1,10 +1,71 @@
 @SieuThiService_HostAddress = http://localhost:5291
 
+### API 1: Weather Forecast (Test API)
 GET {{SieuThiService_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
 
-### Lấy đơn hàng theo mã siêu thị
+### API 2: Tạo đơn hàng (chỉ thông tin cơ bản) - QUẢN LÝ
+POST {{SieuThiService_HostAddress}}/api/DonHangSieuThi/tao-don-hang
+Content-Type: application/json
+
+{
+  "maSieuThi": 1,
+  "maDaiLy": 1,
+  "ngayGiao": "2024-01-15T00:00:00",
+  "ghiChu": "Đơn hàng tạo riêng biệt"
+}
+
+### API 3: Thêm chi tiết đơn hàng - QUẢN LÝ
+POST {{SieuThiService_HostAddress}}/api/DonHangSieuThi/them-chi-tiet
+Content-Type: application/json
+
+{
+  "maDonHang": 1,
+  "maLo": 1,
+  "soLuong": 10.5,
+  "donGia": 25000
+}
+
+### API 4: Thêm chi tiết đơn hàng khác - QUẢN LÝ
+POST {{SieuThiService_HostAddress}}/api/DonHangSieuThi/them-chi-tiet
+Content-Type: application/json
+
+{
+  "maDonHang": 1,
+  "maLo": 2,
+  "soLuong": 5.0,
+  "donGia": 30000
+}
+
+### API 5: Tạo đơn hàng siêu thị (API gộp - tương thích cũ)
+POST {{SieuThiService_HostAddress}}/api/DonHangSieuThi
+Content-Type: application/json
+
+{
+  "maSieuThi": 1,
+  "maDaiLy": 1,
+  "ngayGiao": "2024-01-15T00:00:00",
+  "ghiChu": "Đơn hàng test",
+  "chiTietDonHangs": [
+    {
+      "maLo": 1,
+      "soLuong": 10.5,
+      "donGia": 25000
+    },
+    {
+      "maLo": 2,
+      "soLuong": 5.0,
+      "donGia": 30000
+    }
+  ]
+}
+
+### API 6: Lấy thông tin đơn hàng theo ID
+GET {{SieuThiService_HostAddress}}/api/DonHangSieuThi/1
+Accept: application/json
+
+### API 7: Lấy danh sách đơn hàng theo mã siêu thị
 GET {{SieuThiService_HostAddress}}/api/DonHangSieuThi/sieu-thi/1
 Accept: application/json
