@@ -45,7 +45,7 @@ namespace DaiLyService.Controllers
 
         // PUT: api/dai-ly/update/5
         [HttpPut("update/{id}")]
-        public IActionResult Update(int id, DaiLyTaoMoi dto)
+        public IActionResult Update(int id, DaiLyUpdateDTO dto)
         {
             bool result = _daiLyService.Update(id, dto);
 
