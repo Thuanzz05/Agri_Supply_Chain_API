@@ -10,10 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Repository
 builder.Services.AddScoped<ISanPhamRepository, SanPhamRepository>();
 builder.Services.AddScoped<INongDanRepository, NongDanRepository>();
+builder.Services.AddScoped<ITrangTraiRepository, TrangTraiRepository>();
+builder.Services.AddScoped<ILoNongSanRepository, LoNongSanRepository>();
 
 // Service
 builder.Services.AddScoped<ISanPhamService, SanPhamService>();
 builder.Services.AddScoped<INongDanService, NongDanService.Services.NongDanService>();
+builder.Services.AddScoped<ITrangTraiService, TrangTraiService>();
+builder.Services.AddScoped<ILoNongSanService, LoNongSanService>();
 
 // Controllers
 builder.Services.AddControllers();
