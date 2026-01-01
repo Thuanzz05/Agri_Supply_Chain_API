@@ -57,22 +57,48 @@ namespace DaiLyService.Data
         public int Create(DaiLyTaoMoi dto)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                INSERT INTO DaiLy (MaTaiKhoan, TenDaiLy, SoDienThoai, Email, DiaChi)
-                OUTPUT INSERTED.MaDaiLy
-                VALUES (@MaTaiKhoan, @TenDaiLy, @SoDienThoai, @Email, @DiaChi)", conn);
-
-            cmd.Parameters.AddWithValue("@MaTaiKhoan", dto.MaTaiKhoan);
-            cmd.Parameters.AddWithValue("@TenDaiLy", dto.TenDaiLy);
-            cmd.Parameters.AddWithValue("@SoDienThoai", (object?)dto.SoDienThoai ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@Email", (object?)dto.Email ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@DiaChi", (object?)dto.DiaChi ?? DBNull.Value);
-
             conn.Open();
-            return (int)cmd.ExecuteScalar();
+
+            using var transaction = conn.BeginTransaction();
+
+            try
+            {
+                // 1. Tạo TaiKhoan trước
+                using var cmdTaiKhoan = new SqlCommand(@"
+                    INSERT INTO TaiKhoan (TenDangNhap, MatKhau, LoaiTaiKhoan)
+                    OUTPUT INSERTED.MaTaiKhoan
+                    VALUES (@TenDangNhap, @MatKhau, 'daily')", conn, transaction);
+
+                cmdTaiKhoan.Parameters.AddWithValue("@TenDangNhap", dto.TenDangNhap);
+                cmdTaiKhoan.Parameters.AddWithValue("@MatKhau", dto.MatKhau);
+
+                int maTaiKhoan = (int)cmdTaiKhoan.ExecuteScalar();
+
+                // 2. Tạo DaiLy với MaTaiKhoan vừa tạo
+                using var cmdDaiLy = new SqlCommand(@"
+                    INSERT INTO DaiLy (MaTaiKhoan, TenDaiLy, SoDienThoai, Email, DiaChi)
+                    OUTPUT INSERTED.MaDaiLy
+                    VALUES (@MaTaiKhoan, @TenDaiLy, @SoDienThoai, @Email, @DiaChi)", conn, transaction);
+
+                cmdDaiLy.Parameters.AddWithValue("@MaTaiKhoan", maTaiKhoan);
+                cmdDaiLy.Parameters.AddWithValue("@TenDaiLy", dto.TenDaiLy);
+                cmdDaiLy.Parameters.AddWithValue("@SoDienThoai", (object?)dto.SoDienThoai ?? DBNull.Value);
+                cmdDaiLy.Parameters.AddWithValue("@Email", (object?)dto.Email ?? DBNull.Value);
+                cmdDaiLy.Parameters.AddWithValue("@DiaChi", (object?)dto.DiaChi ?? DBNull.Value);
+
+                int maDaiLy = (int)cmdDaiLy.ExecuteScalar();
+
+                transaction.Commit();
+                return maDaiLy;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
 
-        public bool Update(int maDaiLy, DaiLyTaoMoi dto)
+        public bool Update(int maDaiLy, DaiLyUpdateDTO dto)
         {
             using var conn = new SqlConnection(_connectionString);
             using var cmd = new SqlCommand(@"
