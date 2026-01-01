@@ -7,7 +7,7 @@ namespace DaiLyService.Data
         List<DaiLyPhanHoi> GetAll();
         DaiLyPhanHoi? GetById(int maDaiLy);
         int Create(DaiLyTaoMoi dto);
-        bool Update(int maDaiLy, DaiLyTaoMoi dto);
+        bool Update(int maDaiLy, DaiLyUpdateDTO dto);
         bool Delete(int maDaiLy);
         List<DaiLyPhanHoi> Search(string? tenDaiLy, string? soDienThoai);
     }

@@ -1,19 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace DaiLyService.Models.DTOs
 {
-    public class DaiLyTaoMoi
+    public class DaiLyUpdateDTO
     {
-        // Thông tin tài khoản
-        [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
-        [StringLength(50, ErrorMessage = "Tên đăng nhập không được vượt quá 50 ký tự")]
-        public string TenDangNhap { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
-        [StringLength(255, ErrorMessage = "Mật khẩu không được vượt quá 255 ký tự")]
-        public string MatKhau { get; set; } = string.Empty;
-
-        // Thông tin đại lý
         [Required(ErrorMessage = "Tên đại lý là bắt buộc")]
         [StringLength(100, ErrorMessage = "Tên đại lý không được vượt quá 100 ký tự")]
         public string TenDaiLy { get; set; } = string.Empty;
