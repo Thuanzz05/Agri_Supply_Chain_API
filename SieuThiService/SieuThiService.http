@@ -39,7 +39,28 @@ Content-Type: application/json
   "donGia": 30000
 }
 
-### API 5: Tạo đơn hàng siêu thị (API gộp - tương thích cũ)
+### API 5: Nhận hàng từ đại lý - QUẢN LÝ (Phải chọn kho)
+PUT {{SieuThiService_HostAddress}}/api/DonHangSieuThi/nhan-hang/1
+Content-Type: application/json
+
+{
+  "maKho": 1,
+  "ghiChuNhan": "Hàng đã kiểm tra đầy đủ, chất lượng tốt, nhận vào kho chính"
+}
+
+### API 6: Hủy đơn hàng - QUẢN LÝ
+PUT {{SieuThiService_HostAddress}}/api/DonHangSieuThi/huy-don-hang/1
+Accept: application/json
+
+### API 7: Xem kho hàng của siêu thị - KHO HÀNG
+GET {{SieuThiService_HostAddress}}/api/KhoHang/sieu-thi/1
+Accept: application/json
+
+### API 8: Xem chi tiết một kho hàng - KHO HÀNG
+GET {{SieuThiService_HostAddress}}/api/KhoHang/1
+Accept: application/json
+
+### API 9: Tạo đơn hàng siêu thị (API gộp - tương thích cũ)
 POST {{SieuThiService_HostAddress}}/api/DonHangSieuThi
 Content-Type: application/json
 
@@ -62,10 +83,10 @@ Content-Type: application/json
   ]
 }
 
-### API 6: Lấy thông tin đơn hàng theo ID
+### API 10: Lấy thông tin đơn hàng theo ID
 GET {{SieuThiService_HostAddress}}/api/DonHangSieuThi/1
 Accept: application/json
 
-### API 7: Lấy danh sách đơn hàng theo mã siêu thị
+### API 11: Lấy danh sách đơn hàng theo mã siêu thị
 GET {{SieuThiService_HostAddress}}/api/DonHangSieuThi/sieu-thi/1
 Accept: application/json
