@@ -84,6 +84,77 @@ namespace SieuThiService.Controllers
         }
 
         /// <summary>
+        /// API 4: Nhận hàng từ đại lý (phải chọn kho)
+        /// </summary>
+        /// <param name="id">Mã đơn hàng cần nhận</param>
+        /// <param name="request">Thông tin nhận hàng bao gồm mã kho</param>
+        /// <returns>Kết quả nhận hàng</returns>
+        [HttpPut("nhan-hang/{id}")]
+        public async Task<ActionResult<NhanHangResponse>> NhanHang(int id, [FromBody] NhanHangRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                if (request.MaKho <= 0)
+                {
+                    return BadRequest("Mã kho là bắt buộc và phải lớn hơn 0");
+                }
+
+                var result = await _sieuThiRepository.NhanHangAsync(id, request);
+                
+                if (result == null)
+                {
+                    return NotFound($"Không tìm thấy đơn hàng với mã {id}");
+                }
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// API 5: Hủy đơn hàng
+        /// </summary>
+        /// <param name="id">Mã đơn hàng cần hủy</param>
+        /// <returns>Kết quả hủy đơn hàng</returns>
+        [HttpPut("huy-don-hang/{id}")]
+        public async Task<ActionResult<HuyDonHangResponse>> HuyDonHang(int id)
+        {
+            try
+            {
+                var result = await _sieuThiRepository.HuyDonHangAsync(id);
+                
+                if (result == null)
+                {
+                    return NotFound($"Không tìm thấy đơn hàng với mã {id}");
+                }
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Tạo đơn hàng mới cho siêu thị (API gộp - giữ lại để tương thích)
         /// </summary>
         /// <param name="request">Thông tin đơn hàng cần tạo</param>
