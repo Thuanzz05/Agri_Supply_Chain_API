@@ -12,12 +12,14 @@ builder.Services.AddScoped<ISanPhamRepository, SanPhamRepository>();
 builder.Services.AddScoped<INongDanRepository, NongDanRepository>();
 builder.Services.AddScoped<ITrangTraiRepository, TrangTraiRepository>();
 builder.Services.AddScoped<ILoNongSanRepository, LoNongSanRepository>();
+builder.Services.AddScoped<IDonHangDaiLyRepository, DonHangDaiLyRepository>();
 
 // Service
 builder.Services.AddScoped<ISanPhamService, SanPhamService>();
 builder.Services.AddScoped<INongDanService, NongDanService.Services.NongDanService>();
 builder.Services.AddScoped<ITrangTraiService, TrangTraiService>();
 builder.Services.AddScoped<ILoNongSanService, LoNongSanService>();
+builder.Services.AddScoped<IDonHangDaiLyService, DonHangDaiLyService>();
 
 // Controllers
 builder.Services.AddControllers();
