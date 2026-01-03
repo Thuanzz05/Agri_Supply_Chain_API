@@ -125,7 +125,77 @@ namespace SieuThiService.Controllers
         }
 
         /// <summary>
-        /// API 5: Hủy đơn hàng
+        /// API 5: Sửa chi tiết đơn hàng
+        /// </summary>
+        /// <param name="request">Thông tin chi tiết đơn hàng cần cập nhật</param>
+        /// <returns>Kết quả cập nhật chi tiết đơn hàng</returns>
+        [HttpPut("sua-chi-tiet")]
+        public async Task<ActionResult<UpdateChiTietDonHangResponse>> UpdateChiTietDonHang([FromBody] UpdateChiTietDonHangRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _sieuThiRepository.UpdateChiTietDonHangAsync(request);
+                
+                if (result == null)
+                {
+                    return NotFound($"Không tìm thấy đơn hàng với mã {request.MaDonHang}");
+                }
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// API 6: Xóa chi tiết đơn hàng
+        /// </summary>
+        /// <param name="request">Thông tin chi tiết đơn hàng cần xóa</param>
+        /// <returns>Kết quả xóa chi tiết đơn hàng</returns>
+        [HttpDelete("xoa-chi-tiet")]
+        public async Task<ActionResult<DeleteChiTietDonHangResponse>> DeleteChiTietDonHang([FromBody] DeleteChiTietDonHangRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _sieuThiRepository.DeleteChiTietDonHangAsync(request);
+                
+                if (result == null)
+                {
+                    return NotFound($"Không tìm thấy đơn hàng với mã {request.MaDonHang}");
+                }
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// API 7: Hủy đơn hàng
         /// </summary>
         /// <param name="id">Mã đơn hàng cần hủy</param>
         /// <returns>Kết quả hủy đơn hàng</returns>

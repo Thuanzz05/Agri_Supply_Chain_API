@@ -13,12 +13,18 @@ namespace SieuThiService.Data
         // API riêng biệt cho quản lý
         Task<DonHangResponse?> CreateDonHangOnlyAsync(CreateDonHangRequest request);
         Task<ChiTietDonHangAddResponse?> AddChiTietDonHangAsync(CreateChiTietDonHangRequest request);
+        Task<UpdateChiTietDonHangResponse?> UpdateChiTietDonHangAsync(UpdateChiTietDonHangRequest request);
+        Task<DeleteChiTietDonHangResponse?> DeleteChiTietDonHangAsync(DeleteChiTietDonHangRequest request);
         Task<HuyDonHangResponse?> HuyDonHangAsync(int maDonHang);
         Task<NhanHangResponse?> NhanHangAsync(int maDonHang, NhanHangRequest request);
         
         // API kho hàng
-        Task<DanhSachKhoResponse?> GetKhoHangBySieuThiAsync(int maSieuThi);
+        Task<DanhSachKhoSimpleResponse?> GetDanhSachKhoBySieuThiAsync(int maSieuThi);
         Task<KhoHangResponse?> GetKhoHangByIdAsync(int maKho);
+        Task<CreateKhoResponse?> CreateKhoAsync(CreateKhoRequest request);
+        Task<UpdateKhoResponse?> UpdateKhoAsync(UpdateKhoRequest request);
+        Task<DeleteKhoResponse?> DeleteKhoAsync(int maKho);
+        Task<DeleteTonKhoResponse?> DeleteTonKhoAsync(DeleteTonKhoRequest request);
         
         Task<SieuThi?> GetSieuThiByIdAsync(int maSieuThi);
     }
