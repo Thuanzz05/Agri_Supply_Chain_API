@@ -12,12 +12,14 @@ builder.Services.AddScoped<IDaiLyRepository, DaiLyRepository>();
 builder.Services.AddScoped<IKiemDinhRepository, KiemDinhRepository>();
 builder.Services.AddScoped<IKhoRepository, KhoRepository>();
 builder.Services.AddScoped<IDonHangDaiLyRepository, DonHangDaiLyRepository>();
+builder.Services.AddScoped<IDonHangSieuThiRepository, DonHangSieuThiRepository>();
 
 // Đăng ký Service
 builder.Services.AddScoped<IDaiLyService, DaiLyBusinessService>();
 builder.Services.AddScoped<IKiemDinhService, KiemDinhService>();
 builder.Services.AddScoped<IKhoService, KhoService>();
 builder.Services.AddScoped<IDonHangDaiLyService, DonHangDaiLyService>();
+builder.Services.AddScoped<IDonHangSieuThiService, DonHangSieuThiService>();
 
 
 // ====================
