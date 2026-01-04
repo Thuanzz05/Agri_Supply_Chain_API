@@ -13,17 +13,17 @@ namespace SieuThiService.Data
             _context = context;
         }
 
-        public async Task<DonHangResponse?> CreateDonHangOnlyAsync(CreateDonHangRequest request)
+        public bool CreateDonHangOnly(CreateDonHangRequest request)
         {
             try
             {
                 // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = await _context.SieuThis
-                    .FirstOrDefaultAsync(st => st.MaSieuThi == request.MaSieuThi);
+                var sieuThi = _context.SieuThis
+                    .FirstOrDefault(st => st.MaSieuThi == request.MaSieuThi);
                 
                 if (sieuThi == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Tạo đơn hàng chính (chưa có chi tiết)
@@ -39,7 +39,7 @@ namespace SieuThiService.Data
                 };
 
                 _context.DonHangs.Add(donHang);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
                 // Tạo đơn hàng siêu thị
                 var donHangSieuThi = new DonHangSieuThi
@@ -50,40 +50,27 @@ namespace SieuThiService.Data
                 };
 
                 _context.DonHangSieuThis.Add(donHangSieuThi);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new DonHangResponse
-                {
-                    MaDonHang = donHang.MaDonHang,
-                    MaSieuThi = request.MaSieuThi,
-                    MaDaiLy = request.MaDaiLy,
-                    LoaiDon = donHang.LoaiDon,
-                    NgayDat = donHang.NgayDat,
-                    NgayGiao = donHang.NgayGiao,
-                    TrangThai = donHang.TrangThai,
-                    TongSoLuong = donHang.TongSoLuong,
-                    TongGiaTri = donHang.TongGiaTri,
-                    GhiChu = donHang.GhiChu,
-                    TenSieuThi = sieuThi.TenSieuThi
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<ChiTietDonHangAddResponse?> AddChiTietDonHangAsync(CreateChiTietDonHangRequest request)
+        public bool AddChiTietDonHang(CreateChiTietDonHangRequest request)
         {
             try
             {
                 // Kiểm tra đơn hàng có tồn tại không
-                var donHang = await _context.DonHangs
-                    .FirstOrDefaultAsync(dh => dh.MaDonHang == request.MaDonHang);
+                var donHang = _context.DonHangs
+                    .FirstOrDefault(dh => dh.MaDonHang == request.MaDonHang);
                 
                 if (donHang == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Tính thành tiền
@@ -102,158 +89,70 @@ namespace SieuThiService.Data
                 _context.ChiTietDonHangs.Add(chiTietDonHang);
 
                 // Cập nhật tổng số lượng và tổng giá trị của đơn hàng
-                var tongSoLuong = await _context.ChiTietDonHangs
+                var tongSoLuong = _context.ChiTietDonHangs
                     .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .SumAsync(ct => ct.SoLuong);
+                    .Sum(ct => ct.SoLuong);
                 
-                var tongGiaTri = await _context.ChiTietDonHangs
+                var tongGiaTri = _context.ChiTietDonHangs
                     .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .SumAsync(ct => ct.ThanhTien ?? 0);
+                    .Sum(ct => ct.ThanhTien ?? 0);
 
                 donHang.TongSoLuong = tongSoLuong + request.SoLuong;
                 donHang.TongGiaTri = tongGiaTri + thanhTien;
 
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new ChiTietDonHangAddResponse
-                {
-                    MaDonHang = request.MaDonHang,
-                    MaLo = request.MaLo,
-                    SoLuong = request.SoLuong,
-                    DonGia = request.DonGia,
-                    ThanhTien = thanhTien
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<NhanHangResponse?> NhanHangAsync(int maDonHang, NhanHangRequest request)
+        public bool NhanHang(int maDonHang, NhanHangRequest request)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = _context.Database.BeginTransaction();
             try
             {
                 // Kiểm tra đơn hàng có tồn tại không
-                var donHang = await _context.DonHangs
+                var donHang = _context.DonHangs
                     .Include(dh => dh.DonHangSieuThi)
                     .Include(dh => dh.ChiTietDonHangs)
-                    .FirstOrDefaultAsync(dh => dh.MaDonHang == maDonHang);
+                    .FirstOrDefault(dh => dh.MaDonHang == maDonHang);
                 
                 if (donHang == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể nhận không
-                if (donHang.TrangThai == "da_huy")
+                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_nhan" || donHang.TrangThai == "da_giao")
                 {
-                    return new NhanHangResponse
-                    {
-                        MaDonHang = maDonHang,
-                        TrangThaiCu = donHang.TrangThai ?? "",
-                        TrangThaiMoi = donHang.TrangThai ?? "",
-                        NgayNhan = DateTime.Now,
-                        GhiChuNhan = request.GhiChuNhan,
-                        MaKhoNhan = request.MaKho,
-                        Message = "Không thể nhận đơn hàng đã bị hủy",
-                        Success = false
-                    };
+                    return false;
                 }
-
-                if (donHang.TrangThai == "da_nhan")
-                {
-                    return new NhanHangResponse
-                    {
-                        MaDonHang = maDonHang,
-                        TrangThaiCu = donHang.TrangThai ?? "",
-                        TrangThaiMoi = "da_nhan",
-                        NgayNhan = DateTime.Now,
-                        GhiChuNhan = request.GhiChuNhan,
-                        MaKhoNhan = request.MaKho,
-                        Message = "Đơn hàng đã được nhận trước đó",
-                        Success = false
-                    };
-                }
-
-                if (donHang.TrangThai == "da_giao")
-                {
-                    return new NhanHangResponse
-                    {
-                        MaDonHang = maDonHang,
-                        TrangThaiCu = donHang.TrangThai ?? "",
-                        TrangThaiMoi = donHang.TrangThai ?? "",
-                        NgayNhan = DateTime.Now,
-                        GhiChuNhan = request.GhiChuNhan,
-                        MaKhoNhan = request.MaKho,
-                        Message = "Đơn hàng đã được giao, không thể nhận lại",
-                        Success = false
-                    };
-                }
-
-                // Lưu trạng thái cũ
-                string trangThaiCu = donHang.TrangThai ?? "";
 
                 // Kiểm tra kho được chọn có tồn tại và thuộc về siêu thị không
-                var khoNhan = await _context.Khos
-                    .FirstOrDefaultAsync(k => k.MaKho == request.MaKho && k.MaSieuThi == donHang.DonHangSieuThi!.MaSieuThi);
+                var khoNhan = _context.Khos
+                    .FirstOrDefault(k => k.MaKho == request.MaKho && k.MaSieuThi == donHang.DonHangSieuThi!.MaSieuThi);
 
-                if (khoNhan == null)
+                if (khoNhan == null || khoNhan.TrangThai != "hoat_dong")
                 {
-                    return new NhanHangResponse
-                    {
-                        MaDonHang = maDonHang,
-                        TrangThaiCu = trangThaiCu,
-                        TrangThaiMoi = trangThaiCu,
-                        NgayNhan = DateTime.Now,
-                        GhiChuNhan = request.GhiChuNhan,
-                        MaKhoNhan = request.MaKho,
-                        Message = "Kho không tồn tại hoặc không thuộc về siêu thị này",
-                        Success = false
-                    };
-                }
-
-                // Kiểm tra trạng thái kho
-                if (khoNhan.TrangThai != "hoat_dong")
-                {
-                    return new NhanHangResponse
-                    {
-                        MaDonHang = maDonHang,
-                        TrangThaiCu = trangThaiCu,
-                        TrangThaiMoi = trangThaiCu,
-                        NgayNhan = DateTime.Now,
-                        GhiChuNhan = request.GhiChuNhan,
-                        MaKhoNhan = request.MaKho,
-                        TenKhoNhan = khoNhan.TenKho,
-                        Message = $"Kho '{khoNhan.TenKho}' không hoạt động, không thể nhận hàng",
-                        Success = false
-                    };
+                    return false;
                 }
 
                 // Cập nhật tồn kho cho từng chi tiết đơn hàng
-                var tonKhoCapNhats = new List<TonKhoCapNhat>();
-                
                 foreach (var chiTiet in donHang.ChiTietDonHangs)
                 {
                     // Kiểm tra xem lô hàng đã có trong kho chưa
-                    var tonKho = await _context.TonKhos
-                        .FirstOrDefaultAsync(tk => tk.MaKho == request.MaKho && tk.MaLo == chiTiet.MaLo);
+                    var tonKho = _context.TonKhos
+                        .FirstOrDefault(tk => tk.MaKho == request.MaKho && tk.MaLo == chiTiet.MaLo);
 
                     if (tonKho != null)
                     {
                         // Nếu đã có, cộng thêm số lượng
-                        decimal soLuongCu = tonKho.SoLuong;
                         tonKho.SoLuong += chiTiet.SoLuong;
                         tonKho.CapNhatCuoi = DateTime.Now;
-
-                        tonKhoCapNhats.Add(new TonKhoCapNhat
-                        {
-                            MaLo = chiTiet.MaLo,
-                            SoLuongThem = chiTiet.SoLuong,
-                            SoLuongTonMoi = tonKho.SoLuong,
-                            TrangThai = "cap_nhat"
-                        });
                     }
                     else
                     {
@@ -266,14 +165,6 @@ namespace SieuThiService.Data
                             CapNhatCuoi = DateTime.Now
                         };
                         _context.TonKhos.Add(tonKhoMoi);
-
-                        tonKhoCapNhats.Add(new TonKhoCapNhat
-                        {
-                            MaLo = chiTiet.MaLo,
-                            SoLuongThem = chiTiet.SoLuong,
-                            SoLuongTonMoi = chiTiet.SoLuong,
-                            TrangThai = "tao_moi"
-                        });
                     }
                 }
 
@@ -288,108 +179,45 @@ namespace SieuThiService.Data
                         : $"{donHang.GhiChu}. Ghi chú nhận hàng: {request.GhiChuNhan}";
                 }
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                _context.SaveChanges();
+                transaction.Commit();
 
-                return new NhanHangResponse
-                {
-                    MaDonHang = maDonHang,
-                    TrangThaiCu = trangThaiCu,
-                    TrangThaiMoi = "da_nhan",
-                    NgayNhan = DateTime.Now,
-                    GhiChuNhan = request.GhiChuNhan,
-                    MaKhoNhan = request.MaKho,
-                    TenKhoNhan = khoNhan.TenKho,
-                    Message = $"Nhận hàng thành công vào kho '{khoNhan.TenKho}' và đã cập nhật tồn kho",
-                    Success = true,
-                    TonKhoCapNhats = tonKhoCapNhats
-                };
+                return true;
             }
             catch
             {
-                await transaction.RollbackAsync();
-                throw;
+                transaction.Rollback();
+                return false;
             }
         }
 
-        public async Task<UpdateChiTietDonHangResponse?> UpdateChiTietDonHangAsync(UpdateChiTietDonHangRequest request)
+        public bool UpdateChiTietDonHang(UpdateChiTietDonHangRequest request)
         {
             try
             {
                 // Kiểm tra đơn hàng có tồn tại không
-                var donHang = await _context.DonHangs
-                    .FirstOrDefaultAsync(dh => dh.MaDonHang == request.MaDonHang);
+                var donHang = _context.DonHangs
+                    .FirstOrDefault(dh => dh.MaDonHang == request.MaDonHang);
                 
                 if (donHang == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể sửa không
-                if (donHang.TrangThai == "da_huy")
+                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_giao" || donHang.TrangThai == "dang_giao")
                 {
-                    return new UpdateChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        SoLuongCu = 0,
-                        SoLuongMoi = 0,
-                        NgayCapNhat = DateTime.Now,
-                        Message = "Không thể sửa chi tiết đơn hàng đã bị hủy",
-                        Success = false
-                    };
-                }
-
-                if (donHang.TrangThai == "da_giao")
-                {
-                    return new UpdateChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        SoLuongCu = 0,
-                        SoLuongMoi = 0,
-                        NgayCapNhat = DateTime.Now,
-                        Message = "Không thể sửa chi tiết đơn hàng đã được giao",
-                        Success = false
-                    };
-                }
-
-                if (donHang.TrangThai == "dang_giao")
-                {
-                    return new UpdateChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        SoLuongCu = 0,
-                        SoLuongMoi = 0,
-                        NgayCapNhat = DateTime.Now,
-                        Message = "Không thể sửa chi tiết đơn hàng đang được giao",
-                        Success = false
-                    };
+                    return false;
                 }
 
                 // Tìm chi tiết đơn hàng cần sửa
-                var chiTietDonHang = await _context.ChiTietDonHangs
-                    .FirstOrDefaultAsync(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo == request.MaLo);
+                var chiTietDonHang = _context.ChiTietDonHangs
+                    .FirstOrDefault(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo == request.MaLo);
 
                 if (chiTietDonHang == null)
                 {
-                    return new UpdateChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        SoLuongCu = 0,
-                        SoLuongMoi = 0,
-                        NgayCapNhat = DateTime.Now,
-                        Message = "Không tìm thấy chi tiết đơn hàng với lô này",
-                        Success = false
-                    };
+                    return false;
                 }
-
-                // Lưu giá trị cũ
-                decimal soLuongCu = chiTietDonHang.SoLuong;
-                decimal? donGiaCu = chiTietDonHang.DonGia;
-                decimal? thanhTienCu = chiTietDonHang.ThanhTien;
 
                 // Cập nhật giá trị mới
                 chiTietDonHang.SoLuong = request.SoLuong;
@@ -397,241 +225,132 @@ namespace SieuThiService.Data
                 chiTietDonHang.ThanhTien = request.SoLuong * (request.DonGia ?? 0);
 
                 // Cập nhật tổng số lượng và tổng giá trị của đơn hàng
-                var tongSoLuong = await _context.ChiTietDonHangs
+                var tongSoLuong = _context.ChiTietDonHangs
                     .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .SumAsync(ct => ct.SoLuong);
+                    .Sum(ct => ct.SoLuong);
                 
-                var tongGiaTri = await _context.ChiTietDonHangs
+                var tongGiaTri = _context.ChiTietDonHangs
                     .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .SumAsync(ct => ct.ThanhTien ?? 0);
+                    .Sum(ct => ct.ThanhTien ?? 0);
 
                 donHang.TongSoLuong = tongSoLuong;
                 donHang.TongGiaTri = tongGiaTri;
 
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new UpdateChiTietDonHangResponse
-                {
-                    MaDonHang = request.MaDonHang,
-                    MaLo = request.MaLo,
-                    SoLuongCu = soLuongCu,
-                    SoLuongMoi = chiTietDonHang.SoLuong,
-                    DonGiaCu = donGiaCu,
-                    DonGiaMoi = chiTietDonHang.DonGia,
-                    ThanhTienCu = thanhTienCu,
-                    ThanhTienMoi = chiTietDonHang.ThanhTien,
-                    NgayCapNhat = DateTime.Now,
-                    Message = "Cập nhật chi tiết đơn hàng thành công",
-                    Success = true
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<DeleteChiTietDonHangResponse?> DeleteChiTietDonHangAsync(DeleteChiTietDonHangRequest request)
+        public bool DeleteChiTietDonHang(DeleteChiTietDonHangRequest request)
         {
             try
             {
                 // Kiểm tra đơn hàng có tồn tại không
-                var donHang = await _context.DonHangs
-                    .FirstOrDefaultAsync(dh => dh.MaDonHang == request.MaDonHang);
+                var donHang = _context.DonHangs
+                    .FirstOrDefault(dh => dh.MaDonHang == request.MaDonHang);
                 
                 if (donHang == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể xóa chi tiết không
-                if (donHang.TrangThai == "da_huy")
+                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_giao" || donHang.TrangThai == "dang_giao")
                 {
-                    return new DeleteChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        NgayXoa = DateTime.Now,
-                        Message = "Không thể xóa chi tiết đơn hàng đã bị hủy",
-                        Success = false
-                    };
-                }
-
-                if (donHang.TrangThai == "da_giao")
-                {
-                    return new DeleteChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        NgayXoa = DateTime.Now,
-                        Message = "Không thể xóa chi tiết đơn hàng đã được giao",
-                        Success = false
-                    };
-                }
-
-                if (donHang.TrangThai == "dang_giao")
-                {
-                    return new DeleteChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        NgayXoa = DateTime.Now,
-                        Message = "Không thể xóa chi tiết đơn hàng đang được giao",
-                        Success = false
-                    };
+                    return false;
                 }
 
                 // Tìm chi tiết đơn hàng cần xóa
-                var chiTietDonHang = await _context.ChiTietDonHangs
-                    .FirstOrDefaultAsync(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo == request.MaLo);
+                var chiTietDonHang = _context.ChiTietDonHangs
+                    .FirstOrDefault(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo == request.MaLo);
 
                 if (chiTietDonHang == null)
                 {
-                    return new DeleteChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        NgayXoa = DateTime.Now,
-                        Message = "Không tìm thấy chi tiết đơn hàng với lô này",
-                        Success = false
-                    };
+                    return false;
                 }
 
                 // Kiểm tra xem đơn hàng có ít nhất 2 chi tiết không (không được xóa hết)
-                var soChiTiet = await _context.ChiTietDonHangs
-                    .CountAsync(ct => ct.MaDonHang == request.MaDonHang);
+                var soChiTiet = _context.ChiTietDonHangs
+                    .Count(ct => ct.MaDonHang == request.MaDonHang);
 
                 if (soChiTiet <= 1)
                 {
-                    return new DeleteChiTietDonHangResponse
-                    {
-                        MaDonHang = request.MaDonHang,
-                        MaLo = request.MaLo,
-                        NgayXoa = DateTime.Now,
-                        Message = "Không thể xóa chi tiết cuối cùng. Đơn hàng phải có ít nhất một sản phẩm",
-                        Success = false
-                    };
+                    return false;
                 }
-
-                // Lưu thông tin chi tiết sẽ bị xóa
-                string tenSanPham = $"Lô số {request.MaLo}"; // Tạm thời dùng mã lô
-                decimal soLuongDaXoa = chiTietDonHang.SoLuong;
-                decimal? donGiaDaXoa = chiTietDonHang.DonGia;
-                decimal? thanhTienDaXoa = chiTietDonHang.ThanhTien;
 
                 // Xóa chi tiết đơn hàng
                 _context.ChiTietDonHangs.Remove(chiTietDonHang);
 
                 // Cập nhật lại tổng số lượng và tổng giá trị của đơn hàng
-                var tongSoLuong = await _context.ChiTietDonHangs
+                var tongSoLuong = _context.ChiTietDonHangs
                     .Where(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo != request.MaLo)
-                    .SumAsync(ct => ct.SoLuong);
+                    .Sum(ct => ct.SoLuong);
                 
-                var tongGiaTri = await _context.ChiTietDonHangs
+                var tongGiaTri = _context.ChiTietDonHangs
                     .Where(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo != request.MaLo)
-                    .SumAsync(ct => ct.ThanhTien ?? 0);
+                    .Sum(ct => ct.ThanhTien ?? 0);
 
                 donHang.TongSoLuong = tongSoLuong;
                 donHang.TongGiaTri = tongGiaTri;
 
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new DeleteChiTietDonHangResponse
-                {
-                    MaDonHang = request.MaDonHang,
-                    MaLo = request.MaLo,
-                    TenSanPham = tenSanPham,
-                    SoLuongDaXoa = soLuongDaXoa,
-                    DonGiaDaXoa = donGiaDaXoa,
-                    ThanhTienDaXoa = thanhTienDaXoa,
-                    TongSoLuongConLai = tongSoLuong,
-                    TongGiaTriConLai = tongGiaTri,
-                    NgayXoa = DateTime.Now,
-                    Message = "Xóa chi tiết đơn hàng thành công",
-                    Success = true
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<HuyDonHangResponse?> HuyDonHangAsync(int maDonHang)
+        public bool HuyDonHang(int maDonHang)
         {
             try
             {
                 // Kiểm tra đơn hàng có tồn tại không
-                var donHang = await _context.DonHangs
-                    .FirstOrDefaultAsync(dh => dh.MaDonHang == maDonHang);
+                var donHang = _context.DonHangs
+                    .FirstOrDefault(dh => dh.MaDonHang == maDonHang);
                 
                 if (donHang == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể hủy không
-                if (donHang.TrangThai == "da_huy")
+                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_giao" || donHang.TrangThai == "dang_giao")
                 {
-                    return new HuyDonHangResponse
-                    {
-                        MaDonHang = maDonHang,
-                        TrangThaiCu = donHang.TrangThai ?? "",
-                        TrangThaiMoi = "da_huy",
-                        NgayHuy = DateTime.Now,
-                        Message = "Đơn hàng đã được hủy trước đó",
-                        Success = false
-                    };
+                    return false;
                 }
-
-                if (donHang.TrangThai == "da_giao" || donHang.TrangThai == "dang_giao")
-                {
-                    return new HuyDonHangResponse
-                    {
-                        MaDonHang = maDonHang,
-                        TrangThaiCu = donHang.TrangThai ?? "",
-                        TrangThaiMoi = donHang.TrangThai ?? "",
-                        NgayHuy = DateTime.Now,
-                        Message = "Không thể hủy đơn hàng đã giao hoặc đang giao",
-                        Success = false
-                    };
-                }
-
-                // Lưu trạng thái cũ
-                string trangThaiCu = donHang.TrangThai ?? "";
 
                 // Cập nhật trạng thái đơn hàng thành "da_huy"
                 donHang.TrangThai = "da_huy";
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new HuyDonHangResponse
-                {
-                    MaDonHang = maDonHang,
-                    TrangThaiCu = trangThaiCu,
-                    TrangThaiMoi = "da_huy",
-                    NgayHuy = DateTime.Now,
-                    Message = "Hủy đơn hàng thành công",
-                    Success = true
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<DonHangSieuThiResponse?> CreateDonHangAsync(CreateDonHangSieuThiRequest request)
+        public bool CreateDonHang(CreateDonHangSieuThiRequest request)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = _context.Database.BeginTransaction();
             try
             {
                 // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = await _context.SieuThis
-                    .FirstOrDefaultAsync(st => st.MaSieuThi == request.MaSieuThi);
+                var sieuThi = _context.SieuThis
+                    .FirstOrDefault(st => st.MaSieuThi == request.MaSieuThi);
                 
                 if (sieuThi == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Tính tổng số lượng và tổng giá trị
@@ -651,7 +370,7 @@ namespace SieuThiService.Data
                 };
 
                 _context.DonHangs.Add(donHang);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
                 // Tạo đơn hàng siêu thị
                 var donHangSieuThi = new DonHangSieuThi
@@ -678,101 +397,114 @@ namespace SieuThiService.Data
                     _context.ChiTietDonHangs.Add(chiTietDonHang);
                 }
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                _context.SaveChanges();
+                transaction.Commit();
 
-                // Trả về thông tin đơn hàng đã tạo
-                return await GetDonHangByIdAsync(donHang.MaDonHang);
+                return true;
             }
             catch
             {
-                await transaction.RollbackAsync();
-                throw;
+                transaction.Rollback();
+                return false;
             }
         }
 
-        public async Task<DonHangSieuThiResponse?> GetDonHangByIdAsync(int maDonHang)
+        public DonHangSieuThiResponse? GetDonHangById(int maDonHang)
         {
-            var donHang = await _context.DonHangs
-                .Include(dh => dh.DonHangSieuThi)
-                    .ThenInclude(dhst => dhst!.MaSieuThiNavigation)
-                .Include(dh => dh.ChiTietDonHangs)
-                .FirstOrDefaultAsync(dh => dh.MaDonHang == maDonHang);
+            try
+            {
+                var donHang = _context.DonHangs
+                    .Include(dh => dh.DonHangSieuThi)
+                        .ThenInclude(dhst => dhst!.MaSieuThiNavigation)
+                    .Include(dh => dh.ChiTietDonHangs)
+                    .FirstOrDefault(dh => dh.MaDonHang == maDonHang);
 
-            if (donHang?.DonHangSieuThi == null)
+                if (donHang?.DonHangSieuThi == null)
+                    return null;
+
+                return new DonHangSieuThiResponse
+                {
+                    MaDonHang = donHang.MaDonHang,
+                    MaSieuThi = donHang.DonHangSieuThi.MaSieuThi,
+                    MaDaiLy = donHang.DonHangSieuThi.MaDaiLy,
+                    LoaiDon = donHang.LoaiDon,
+                    NgayDat = donHang.NgayDat,
+                    NgayGiao = donHang.NgayGiao,
+                    TrangThai = donHang.TrangThai,
+                    TongSoLuong = donHang.TongSoLuong,
+                    TongGiaTri = donHang.TongGiaTri,
+                    GhiChu = donHang.GhiChu,
+                    TenSieuThi = donHang.DonHangSieuThi.MaSieuThiNavigation?.TenSieuThi,
+                    ChiTietDonHangs = donHang.ChiTietDonHangs.Select(ct => new ChiTietDonHangResponse
+                    {
+                        MaLo = ct.MaLo,
+                        SoLuong = ct.SoLuong,
+                        DonGia = ct.DonGia,
+                        ThanhTien = ct.ThanhTien
+                    }).ToList()
+                };
+            }
+            catch
+            {
                 return null;
-
-            return new DonHangSieuThiResponse
-            {
-                MaDonHang = donHang.MaDonHang,
-                MaSieuThi = donHang.DonHangSieuThi.MaSieuThi,
-                MaDaiLy = donHang.DonHangSieuThi.MaDaiLy,
-                LoaiDon = donHang.LoaiDon,
-                NgayDat = donHang.NgayDat,
-                NgayGiao = donHang.NgayGiao,
-                TrangThai = donHang.TrangThai,
-                TongSoLuong = donHang.TongSoLuong,
-                TongGiaTri = donHang.TongGiaTri,
-                GhiChu = donHang.GhiChu,
-                TenSieuThi = donHang.DonHangSieuThi.MaSieuThiNavigation?.TenSieuThi,
-                ChiTietDonHangs = donHang.ChiTietDonHangs.Select(ct => new ChiTietDonHangResponse
-                {
-                    MaLo = ct.MaLo,
-                    SoLuong = ct.SoLuong,
-                    DonGia = ct.DonGia,
-                    ThanhTien = ct.ThanhTien
-                }).ToList()
-            };
+            }
         }
 
-        public async Task<List<DonHangSieuThiResponse>> GetDonHangsBySieuThiAsync(int maSieuThi)
+        public List<DonHangSieuThiResponse> GetDonHangsBySieuThi(int maSieuThi)
         {
-            var donHangs = await _context.DonHangs
-                .Include(dh => dh.DonHangSieuThi)
-                    .ThenInclude(dhst => dhst!.MaSieuThiNavigation)
-                .Include(dh => dh.ChiTietDonHangs)
-                .Where(dh => dh.DonHangSieuThi != null && dh.DonHangSieuThi.MaSieuThi == maSieuThi)
-                .OrderByDescending(dh => dh.NgayDat)
-                .ToListAsync();
-
-            return donHangs.Select(donHang => new DonHangSieuThiResponse
+            try
             {
-                MaDonHang = donHang.MaDonHang,
-                MaSieuThi = donHang.DonHangSieuThi!.MaSieuThi,
-                MaDaiLy = donHang.DonHangSieuThi.MaDaiLy,
-                LoaiDon = donHang.LoaiDon,
-                NgayDat = donHang.NgayDat,
-                NgayGiao = donHang.NgayGiao,
-                TrangThai = donHang.TrangThai,
-                TongSoLuong = donHang.TongSoLuong,
-                TongGiaTri = donHang.TongGiaTri,
-                GhiChu = donHang.GhiChu,
-                TenSieuThi = donHang.DonHangSieuThi.MaSieuThiNavigation?.TenSieuThi,
-                ChiTietDonHangs = donHang.ChiTietDonHangs.Select(ct => new ChiTietDonHangResponse
+                var donHangs = _context.DonHangs
+                    .Include(dh => dh.DonHangSieuThi)
+                        .ThenInclude(dhst => dhst!.MaSieuThiNavigation)
+                    .Include(dh => dh.ChiTietDonHangs)
+                    .Where(dh => dh.DonHangSieuThi != null && dh.DonHangSieuThi.MaSieuThi == maSieuThi)
+                    .OrderByDescending(dh => dh.NgayDat)
+                    .ToList();
+
+                return donHangs.Select(donHang => new DonHangSieuThiResponse
                 {
-                    MaLo = ct.MaLo,
-                    SoLuong = ct.SoLuong,
-                    DonGia = ct.DonGia,
-                    ThanhTien = ct.ThanhTien
-                }).ToList()
-            }).ToList();
+                    MaDonHang = donHang.MaDonHang,
+                    MaSieuThi = donHang.DonHangSieuThi!.MaSieuThi,
+                    MaDaiLy = donHang.DonHangSieuThi.MaDaiLy,
+                    LoaiDon = donHang.LoaiDon,
+                    NgayDat = donHang.NgayDat,
+                    NgayGiao = donHang.NgayGiao,
+                    TrangThai = donHang.TrangThai,
+                    TongSoLuong = donHang.TongSoLuong,
+                    TongGiaTri = donHang.TongGiaTri,
+                    GhiChu = donHang.GhiChu,
+                    TenSieuThi = donHang.DonHangSieuThi.MaSieuThiNavigation?.TenSieuThi,
+                    ChiTietDonHangs = donHang.ChiTietDonHangs.Select(ct => new ChiTietDonHangResponse
+                    {
+                        MaLo = ct.MaLo,
+                        SoLuong = ct.SoLuong,
+                        DonGia = ct.DonGia,
+                        ThanhTien = ct.ThanhTien
+                    }).ToList()
+                }).ToList();
+            }
+            catch
+            {
+                return new List<DonHangSieuThiResponse>();
+            }
         }
 
-        public async Task<DanhSachKhoSimpleResponse?> GetDanhSachKhoBySieuThiAsync(int maSieuThi)
+        public List<KhoSimpleInfo> GetDanhSachKhoBySieuThi(int maSieuThi)
         {
             try
             {
                 // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = await _context.SieuThis
-                    .FirstOrDefaultAsync(st => st.MaSieuThi == maSieuThi);
+                var sieuThi = _context.SieuThis
+                    .FirstOrDefault(st => st.MaSieuThi == maSieuThi);
                 
                 if (sieuThi == null)
                 {
-                    return null;
+                    return new List<KhoSimpleInfo>();
                 }
 
                 // Lấy danh sách kho của siêu thị (chỉ thông tin cơ bản)
-                var danhSachKho = await _context.Khos
+                var danhSachKho = _context.Khos
                     .Where(k => k.MaSieuThi == maSieuThi)
                     .Select(k => new KhoSimpleInfo
                     {
@@ -785,30 +517,24 @@ namespace SieuThiService.Data
                         TongSoLoHang = k.TonKhos.Count(),
                         TongSoLuong = k.TonKhos.Sum(tk => tk.SoLuong)
                     })
-                    .ToListAsync();
+                    .ToList();
 
-                return new DanhSachKhoSimpleResponse
-                {
-                    MaSieuThi = maSieuThi,
-                    TenSieuThi = sieuThi.TenSieuThi,
-                    DanhSachKho = danhSachKho,
-                    TongSoKho = danhSachKho.Count
-                };
+                return danhSachKho;
             }
             catch
             {
-                throw;
+                return new List<KhoSimpleInfo>();
             }
         }
 
-        public async Task<KhoHangResponse?> GetKhoHangByIdAsync(int maKho)
+        public KhoHangResponse? GetKhoHangById(int maKho)
         {
             try
             {
-                var kho = await _context.Khos
+                var kho = _context.Khos
                     .Include(k => k.TonKhos)
                     .Include(k => k.MaSieuThiNavigation)
-                    .FirstOrDefaultAsync(k => k.MaKho == maKho);
+                    .FirstOrDefault(k => k.MaKho == maKho);
 
                 if (kho == null)
                 {
@@ -840,39 +566,30 @@ namespace SieuThiService.Data
             }
             catch
             {
-                throw;
+                return null;
             }
         }
 
-        public async Task<CreateKhoResponse?> CreateKhoAsync(CreateKhoRequest request)
+        public bool CreateKho(CreateKhoRequest request)
         {
             try
             {
                 // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = await _context.SieuThis
-                    .FirstOrDefaultAsync(st => st.MaSieuThi == request.MaSieuThi);
+                var sieuThi = _context.SieuThis
+                    .FirstOrDefault(st => st.MaSieuThi == request.MaSieuThi);
                 
                 if (sieuThi == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Kiểm tra tên kho đã tồn tại trong siêu thị chưa
-                var existingKho = await _context.Khos
-                    .FirstOrDefaultAsync(k => k.MaSieuThi == request.MaSieuThi && k.TenKho == request.TenKho);
+                var existingKho = _context.Khos
+                    .FirstOrDefault(k => k.MaSieuThi == request.MaSieuThi && k.TenKho == request.TenKho);
 
                 if (existingKho != null)
                 {
-                    return new CreateKhoResponse
-                    {
-                        MaKho = 0,
-                        MaSieuThi = request.MaSieuThi,
-                        TenSieuThi = sieuThi.TenSieuThi ?? "",
-                        TenKho = request.TenKho,
-                        NgayTao = DateTime.Now,
-                        Message = "Tên kho đã tồn tại trong siêu thị này",
-                        Success = false
-                    };
+                    return false;
                 }
 
                 // Tạo kho mới
@@ -887,66 +604,40 @@ namespace SieuThiService.Data
                 };
 
                 _context.Khos.Add(newKho);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new CreateKhoResponse
-                {
-                    MaKho = newKho.MaKho,
-                    MaSieuThi = request.MaSieuThi,
-                    TenSieuThi = sieuThi.TenSieuThi ?? "",
-                    TenKho = newKho.TenKho,
-                    LoaiKho = newKho.LoaiKho,
-                    DiaChi = newKho.DiaChi,
-                    TrangThai = newKho.TrangThai,
-                    NgayTao = newKho.NgayTao ?? DateTime.Now,
-                    Message = "Tạo kho thành công",
-                    Success = true
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<UpdateKhoResponse?> UpdateKhoAsync(UpdateKhoRequest request)
+        public bool UpdateKho(UpdateKhoRequest request)
         {
             try
             {
                 // Tìm kho cần cập nhật
-                var kho = await _context.Khos
-                    .FirstOrDefaultAsync(k => k.MaKho == request.MaKho);
+                var kho = _context.Khos
+                    .FirstOrDefault(k => k.MaKho == request.MaKho);
                 
                 if (kho == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Kiểm tra tên kho mới có trùng với kho khác trong cùng siêu thị không
                 if (kho.TenKho != request.TenKho)
                 {
-                    var existingKho = await _context.Khos
-                        .FirstOrDefaultAsync(k => k.MaSieuThi == kho.MaSieuThi && k.TenKho == request.TenKho && k.MaKho != request.MaKho);
+                    var existingKho = _context.Khos
+                        .FirstOrDefault(k => k.MaSieuThi == kho.MaSieuThi && k.TenKho == request.TenKho && k.MaKho != request.MaKho);
 
                     if (existingKho != null)
                     {
-                        return new UpdateKhoResponse
-                        {
-                            MaKho = request.MaKho,
-                            TenKhoCu = kho.TenKho,
-                            TenKhoMoi = request.TenKho,
-                            NgayCapNhat = DateTime.Now,
-                            Message = "Tên kho đã tồn tại trong siêu thị này",
-                            Success = false
-                        };
+                        return false;
                     }
                 }
-
-                // Lưu thông tin cũ
-                string tenKhoCu = kho.TenKho;
-                string loaiKhoCu = kho.LoaiKho;
-                string? diaChiCu = kho.DiaChi;
-                string? trangThaiCu = kho.TrangThai;
 
                 // Cập nhật thông tin mới
                 kho.TenKho = request.TenKho;
@@ -954,144 +645,93 @@ namespace SieuThiService.Data
                 kho.DiaChi = request.DiaChi;
                 kho.TrangThai = request.TrangThai;
 
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new UpdateKhoResponse
-                {
-                    MaKho = request.MaKho,
-                    TenKhoCu = tenKhoCu,
-                    TenKhoMoi = kho.TenKho,
-                    LoaiKhoCu = loaiKhoCu,
-                    LoaiKhoMoi = kho.LoaiKho,
-                    DiaChiCu = diaChiCu,
-                    DiaChiMoi = kho.DiaChi,
-                    TrangThaiCu = trangThaiCu,
-                    TrangThaiMoi = kho.TrangThai,
-                    NgayCapNhat = DateTime.Now,
-                    Message = "Cập nhật kho thành công",
-                    Success = true
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<DeleteKhoResponse?> DeleteKhoAsync(int maKho)
+        public bool DeleteKho(int maKho)
         {
             try
             {
                 // Tìm kho cần xóa
-                var kho = await _context.Khos
+                var kho = _context.Khos
                     .Include(k => k.TonKhos)
-                    .FirstOrDefaultAsync(k => k.MaKho == maKho);
+                    .FirstOrDefault(k => k.MaKho == maKho);
                 
                 if (kho == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Kiểm tra kho có tồn kho không
                 if (kho.TonKhos.Any())
                 {
-                    return new DeleteKhoResponse
-                    {
-                        MaKho = maKho,
-                        TenKho = kho.TenKho,
-                        LoaiKho = kho.LoaiKho,
-                        SoLuongTonKhoDaXoa = kho.TonKhos.Count,
-                        NgayXoa = DateTime.Now,
-                        Message = "Không thể xóa kho vì còn tồn kho. Vui lòng xóa hết tồn kho trước",
-                        Success = false
-                    };
+                    return false;
                 }
-
-                // Lưu thông tin trước khi xóa
-                string tenKho = kho.TenKho;
-                string loaiKho = kho.LoaiKho;
-                int soLuongTonKho = kho.TonKhos.Count;
 
                 // Xóa kho
                 _context.Khos.Remove(kho);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new DeleteKhoResponse
-                {
-                    MaKho = maKho,
-                    TenKho = tenKho,
-                    LoaiKho = loaiKho,
-                    SoLuongTonKhoDaXoa = soLuongTonKho,
-                    NgayXoa = DateTime.Now,
-                    Message = "Xóa kho thành công",
-                    Success = true
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<DeleteTonKhoResponse?> DeleteTonKhoAsync(DeleteTonKhoRequest request)
+        public bool DeleteTonKho(DeleteTonKhoRequest request)
         {
             try
             {
                 // Kiểm tra kho có tồn tại không
-                var kho = await _context.Khos
-                    .FirstOrDefaultAsync(k => k.MaKho == request.MaKho);
+                var kho = _context.Khos
+                    .FirstOrDefault(k => k.MaKho == request.MaKho);
                 
                 if (kho == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // Tìm tồn kho cần xóa
-                var tonKho = await _context.TonKhos
-                    .FirstOrDefaultAsync(tk => tk.MaKho == request.MaKho && tk.MaLo == request.MaLo);
+                var tonKho = _context.TonKhos
+                    .FirstOrDefault(tk => tk.MaKho == request.MaKho && tk.MaLo == request.MaLo);
 
                 if (tonKho == null)
                 {
-                    return new DeleteTonKhoResponse
-                    {
-                        MaKho = request.MaKho,
-                        TenKho = kho.TenKho,
-                        MaLo = request.MaLo,
-                        SoLuongDaXoa = 0,
-                        NgayXoa = DateTime.Now,
-                        Message = "Không tìm thấy tồn kho với lô này trong kho",
-                        Success = false
-                    };
+                    return false;
                 }
-
-                // Lưu thông tin trước khi xóa
-                decimal soLuongDaXoa = tonKho.SoLuong;
 
                 // Xóa tồn kho
                 _context.TonKhos.Remove(tonKho);
-                await _context.SaveChangesAsync();
+                _context.SaveChanges();
 
-                return new DeleteTonKhoResponse
-                {
-                    MaKho = request.MaKho,
-                    TenKho = kho.TenKho,
-                    MaLo = request.MaLo,
-                    SoLuongDaXoa = soLuongDaXoa,
-                    NgayXoa = DateTime.Now,
-                    Message = "Xóa tồn kho thành công",
-                    Success = true
-                };
+                return true;
             }
             catch
             {
-                throw;
+                return false;
             }
         }
 
-        public async Task<SieuThi?> GetSieuThiByIdAsync(int maSieuThi)
+        public bool GetSieuThiById(int maSieuThi)
         {
-            return await _context.SieuThis
-                .FirstOrDefaultAsync(st => st.MaSieuThi == maSieuThi);
+            try
+            {
+                return _context.SieuThis
+                    .FirstOrDefault(st => st.MaSieuThi == maSieuThi) != null;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

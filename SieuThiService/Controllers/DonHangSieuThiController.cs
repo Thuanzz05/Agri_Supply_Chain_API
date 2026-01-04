@@ -22,7 +22,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin đơn hàng cơ bản</param>
         /// <returns>Thông tin đơn hàng đã tạo</returns>
         [HttpPost("tao-don-hang")]
-        public async Task<ActionResult<DonHangResponse>> CreateDonHangOnly([FromBody] CreateDonHangRequest request)
+        public ActionResult CreateDonHangOnly([FromBody] CreateDonHangRequest request)
         {
             try
             {
@@ -32,20 +32,20 @@ namespace SieuThiService.Controllers
                 }
 
                 // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = await _sieuThiRepository.GetSieuThiByIdAsync(request.MaSieuThi);
-                if (sieuThi == null)
+                var sieuThiExists = _sieuThiRepository.GetSieuThiById(request.MaSieuThi);
+                if (!sieuThiExists)
                 {
                     return NotFound($"Không tìm thấy siêu thị với mã {request.MaSieuThi}");
                 }
 
-                var result = await _sieuThiRepository.CreateDonHangOnlyAsync(request);
+                var result = _sieuThiRepository.CreateDonHangOnly(request);
                 
-                if (result == null)
+                if (!result)
                 {
                     return BadRequest("Không thể tạo đơn hàng");
                 }
 
-                return CreatedAtAction(nameof(GetDonHangById), new { id = result.MaDonHang }, result);
+                return Ok("Tạo đơn hàng thành công");
             }
             catch (Exception ex)
             {
@@ -59,7 +59,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin chi tiết đơn hàng</param>
         /// <returns>Thông tin chi tiết đã thêm</returns>
         [HttpPost("them-chi-tiet")]
-        public async Task<ActionResult<ChiTietDonHangAddResponse>> AddChiTietDonHang([FromBody] CreateChiTietDonHangRequest request)
+        public ActionResult AddChiTietDonHang([FromBody] CreateChiTietDonHangRequest request)
         {
             try
             {
@@ -68,14 +68,14 @@ namespace SieuThiService.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var result = await _sieuThiRepository.AddChiTietDonHangAsync(request);
+                var result = _sieuThiRepository.AddChiTietDonHang(request);
                 
-                if (result == null)
+                if (!result)
                 {
                     return NotFound($"Không tìm thấy đơn hàng với mã {request.MaDonHang}");
                 }
 
-                return Ok(result);
+                return Ok("Thêm chi tiết đơn hàng thành công");
             }
             catch (Exception ex)
             {
@@ -90,7 +90,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin nhận hàng bao gồm mã kho</param>
         /// <returns>Kết quả nhận hàng</returns>
         [HttpPut("nhan-hang/{id}")]
-        public async Task<ActionResult<NhanHangResponse>> NhanHang(int id, [FromBody] NhanHangRequest request)
+        public ActionResult NhanHang(int id, [FromBody] NhanHangRequest request)
         {
             try
             {
@@ -104,19 +104,14 @@ namespace SieuThiService.Controllers
                     return BadRequest("Mã kho là bắt buộc và phải lớn hơn 0");
                 }
 
-                var result = await _sieuThiRepository.NhanHangAsync(id, request);
+                var result = _sieuThiRepository.NhanHang(id, request);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy đơn hàng với mã {id}");
+                    return BadRequest("Không thể nhận hàng");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
+                return Ok("Nhận hàng thành công");
             }
             catch (Exception ex)
             {
@@ -130,7 +125,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin chi tiết đơn hàng cần cập nhật</param>
         /// <returns>Kết quả cập nhật chi tiết đơn hàng</returns>
         [HttpPut("sua-chi-tiet")]
-        public async Task<ActionResult<UpdateChiTietDonHangResponse>> UpdateChiTietDonHang([FromBody] UpdateChiTietDonHangRequest request)
+        public ActionResult UpdateChiTietDonHang([FromBody] UpdateChiTietDonHangRequest request)
         {
             try
             {
@@ -139,19 +134,14 @@ namespace SieuThiService.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var result = await _sieuThiRepository.UpdateChiTietDonHangAsync(request);
+                var result = _sieuThiRepository.UpdateChiTietDonHang(request);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy đơn hàng với mã {request.MaDonHang}");
+                    return BadRequest("Không thể cập nhật chi tiết đơn hàng");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
+                return Ok("Cập nhật chi tiết đơn hàng thành công");
             }
             catch (Exception ex)
             {
@@ -165,7 +155,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin chi tiết đơn hàng cần xóa</param>
         /// <returns>Kết quả xóa chi tiết đơn hàng</returns>
         [HttpDelete("xoa-chi-tiet")]
-        public async Task<ActionResult<DeleteChiTietDonHangResponse>> DeleteChiTietDonHang([FromBody] DeleteChiTietDonHangRequest request)
+        public ActionResult DeleteChiTietDonHang([FromBody] DeleteChiTietDonHangRequest request)
         {
             try
             {
@@ -174,19 +164,14 @@ namespace SieuThiService.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var result = await _sieuThiRepository.DeleteChiTietDonHangAsync(request);
+                var result = _sieuThiRepository.DeleteChiTietDonHang(request);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy đơn hàng với mã {request.MaDonHang}");
+                    return BadRequest("Không thể xóa chi tiết đơn hàng");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
+                return Ok("Xóa chi tiết đơn hàng thành công");
             }
             catch (Exception ex)
             {
@@ -200,23 +185,18 @@ namespace SieuThiService.Controllers
         /// <param name="id">Mã đơn hàng cần hủy</param>
         /// <returns>Kết quả hủy đơn hàng</returns>
         [HttpPut("huy-don-hang/{id}")]
-        public async Task<ActionResult<HuyDonHangResponse>> HuyDonHang(int id)
+        public ActionResult HuyDonHang(int id)
         {
             try
             {
-                var result = await _sieuThiRepository.HuyDonHangAsync(id);
+                var result = _sieuThiRepository.HuyDonHang(id);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy đơn hàng với mã {id}");
+                    return BadRequest("Không thể hủy đơn hàng");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
+                return Ok("Hủy đơn hàng thành công");
             }
             catch (Exception ex)
             {
@@ -230,7 +210,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin đơn hàng cần tạo</param>
         /// <returns>Thông tin đơn hàng đã tạo</returns>
         [HttpPost]
-        public async Task<ActionResult<DonHangSieuThiResponse>> CreateDonHang([FromBody] CreateDonHangSieuThiRequest request)
+        public ActionResult CreateDonHang([FromBody] CreateDonHangSieuThiRequest request)
         {
             try
             {
@@ -246,20 +226,20 @@ namespace SieuThiService.Controllers
                 }
 
                 // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = await _sieuThiRepository.GetSieuThiByIdAsync(request.MaSieuThi);
-                if (sieuThi == null)
+                var sieuThiExists = _sieuThiRepository.GetSieuThiById(request.MaSieuThi);
+                if (!sieuThiExists)
                 {
                     return NotFound($"Không tìm thấy siêu thị với mã {request.MaSieuThi}");
                 }
 
-                var result = await _sieuThiRepository.CreateDonHangAsync(request);
+                var result = _sieuThiRepository.CreateDonHang(request);
                 
-                if (result == null)
+                if (!result)
                 {
                     return BadRequest("Không thể tạo đơn hàng");
                 }
 
-                return CreatedAtAction(nameof(GetDonHangById), new { id = result.MaDonHang }, result);
+                return Ok("Tạo đơn hàng thành công");
             }
             catch (Exception ex)
             {
@@ -273,11 +253,11 @@ namespace SieuThiService.Controllers
         /// <param name="id">Mã đơn hàng</param>
         /// <returns>Thông tin đơn hàng</returns>
         [HttpGet("{id}")]
-        public async Task<ActionResult<DonHangSieuThiResponse>> GetDonHangById(int id)
+        public ActionResult<DonHangSieuThiResponse> GetDonHangById(int id)
         {
             try
             {
-                var donHang = await _sieuThiRepository.GetDonHangByIdAsync(id);
+                var donHang = _sieuThiRepository.GetDonHangById(id);
                 
                 if (donHang == null)
                 {
@@ -298,18 +278,18 @@ namespace SieuThiService.Controllers
         /// <param name="maSieuThi">Mã siêu thị</param>
         /// <returns>Danh sách đơn hàng</returns>
         [HttpGet("sieu-thi/{maSieuThi}")]
-        public async Task<ActionResult<List<DonHangSieuThiResponse>>> GetDonHangsBySieuThi(int maSieuThi)
+        public ActionResult<List<DonHangSieuThiResponse>> GetDonHangsBySieuThi(int maSieuThi)
         {
             try
             {
                 // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = await _sieuThiRepository.GetSieuThiByIdAsync(maSieuThi);
-                if (sieuThi == null)
+                var sieuThiExists = _sieuThiRepository.GetSieuThiById(maSieuThi);
+                if (!sieuThiExists)
                 {
                     return NotFound($"Không tìm thấy siêu thị với mã {maSieuThi}");
                 }
 
-                var donHangs = await _sieuThiRepository.GetDonHangsBySieuThiAsync(maSieuThi);
+                var donHangs = _sieuThiRepository.GetDonHangsBySieuThi(maSieuThi);
                 return Ok(donHangs);
             }
             catch (Exception ex)
