@@ -6,26 +6,26 @@ namespace SieuThiService.Data
     public interface ISieuThiRepository
     {
         // API gộp (hiện tại)
-        Task<DonHangSieuThiResponse?> CreateDonHangAsync(CreateDonHangSieuThiRequest request);
-        Task<DonHangSieuThiResponse?> GetDonHangByIdAsync(int maDonHang);
-        Task<List<DonHangSieuThiResponse>> GetDonHangsBySieuThiAsync(int maSieuThi);
+        bool CreateDonHang(CreateDonHangSieuThiRequest request);
+        DonHangSieuThiResponse? GetDonHangById(int maDonHang);
+        List<DonHangSieuThiResponse> GetDonHangsBySieuThi(int maSieuThi);
         
         // API riêng biệt cho quản lý
-        Task<DonHangResponse?> CreateDonHangOnlyAsync(CreateDonHangRequest request);
-        Task<ChiTietDonHangAddResponse?> AddChiTietDonHangAsync(CreateChiTietDonHangRequest request);
-        Task<UpdateChiTietDonHangResponse?> UpdateChiTietDonHangAsync(UpdateChiTietDonHangRequest request);
-        Task<DeleteChiTietDonHangResponse?> DeleteChiTietDonHangAsync(DeleteChiTietDonHangRequest request);
-        Task<HuyDonHangResponse?> HuyDonHangAsync(int maDonHang);
-        Task<NhanHangResponse?> NhanHangAsync(int maDonHang, NhanHangRequest request);
+        bool CreateDonHangOnly(CreateDonHangRequest request);
+        bool AddChiTietDonHang(CreateChiTietDonHangRequest request);
+        bool UpdateChiTietDonHang(UpdateChiTietDonHangRequest request);
+        bool DeleteChiTietDonHang(DeleteChiTietDonHangRequest request);
+        bool HuyDonHang(int maDonHang);
+        bool NhanHang(int maDonHang, NhanHangRequest request);
         
         // API kho hàng
-        Task<DanhSachKhoSimpleResponse?> GetDanhSachKhoBySieuThiAsync(int maSieuThi);
-        Task<KhoHangResponse?> GetKhoHangByIdAsync(int maKho);
-        Task<CreateKhoResponse?> CreateKhoAsync(CreateKhoRequest request);
-        Task<UpdateKhoResponse?> UpdateKhoAsync(UpdateKhoRequest request);
-        Task<DeleteKhoResponse?> DeleteKhoAsync(int maKho);
-        Task<DeleteTonKhoResponse?> DeleteTonKhoAsync(DeleteTonKhoRequest request);
+        List<KhoSimpleInfo> GetDanhSachKhoBySieuThi(int maSieuThi);
+        KhoHangResponse? GetKhoHangById(int maKho);
+        bool CreateKho(CreateKhoRequest request);
+        bool UpdateKho(UpdateKhoRequest request);
+        bool DeleteKho(int maKho);
+        bool DeleteTonKho(DeleteTonKhoRequest request);
         
-        Task<SieuThi?> GetSieuThiByIdAsync(int maSieuThi);
+        bool GetSieuThiById(int maSieuThi);
     }
 }

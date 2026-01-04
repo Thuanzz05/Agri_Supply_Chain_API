@@ -22,17 +22,12 @@ namespace SieuThiService.Controllers
         /// <param name="maSieuThi">Mã siêu thị</param>
         /// <returns>Danh sách kho hàng cơ bản</returns>
         [HttpGet("sieu-thi/{maSieuThi}")]
-        public async Task<ActionResult<DanhSachKhoSimpleResponse>> GetDanhSachKhoBySieuThi(int maSieuThi)
+        public ActionResult<List<KhoSimpleInfo>> GetDanhSachKhoBySieuThi(int maSieuThi)
         {
             try
             {
-                var result = await _sieuThiRepository.GetDanhSachKhoBySieuThiAsync(maSieuThi);
+                var result = _sieuThiRepository.GetDanhSachKhoBySieuThi(maSieuThi);
                 
-                if (result == null)
-                {
-                    return NotFound($"Không tìm thấy siêu thị với mã {maSieuThi}");
-                }
-
                 return Ok(result);
             }
             catch (Exception ex)
@@ -47,11 +42,11 @@ namespace SieuThiService.Controllers
         /// <param name="maKho">Mã kho</param>
         /// <returns>Thông tin chi tiết kho hàng</returns>
         [HttpGet("{maKho}")]
-        public async Task<ActionResult<KhoHangResponse>> GetKhoHangById(int maKho)
+        public ActionResult<KhoHangResponse> GetKhoHangById(int maKho)
         {
             try
             {
-                var result = await _sieuThiRepository.GetKhoHangByIdAsync(maKho);
+                var result = _sieuThiRepository.GetKhoHangById(maKho);
                 
                 if (result == null)
                 {
@@ -72,7 +67,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin kho mới</param>
         /// <returns>Kết quả tạo kho</returns>
         [HttpPost("tao-kho")]
-        public async Task<ActionResult<CreateKhoResponse>> CreateKho([FromBody] CreateKhoRequest request)
+        public ActionResult CreateKho([FromBody] CreateKhoRequest request)
         {
             try
             {
@@ -81,19 +76,14 @@ namespace SieuThiService.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var result = await _sieuThiRepository.CreateKhoAsync(request);
+                var result = _sieuThiRepository.CreateKho(request);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy siêu thị với mã {request.MaSieuThi}");
+                    return BadRequest("Không thể tạo kho");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return CreatedAtAction(nameof(GetKhoHangById), new { maKho = result.MaKho }, result);
+                return Ok("Tạo kho thành công");
             }
             catch (Exception ex)
             {
@@ -107,7 +97,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin cập nhật kho</param>
         /// <returns>Kết quả cập nhật</returns>
         [HttpPut("cap-nhat-kho")]
-        public async Task<ActionResult<UpdateKhoResponse>> UpdateKho([FromBody] UpdateKhoRequest request)
+        public ActionResult UpdateKho([FromBody] UpdateKhoRequest request)
         {
             try
             {
@@ -116,19 +106,14 @@ namespace SieuThiService.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var result = await _sieuThiRepository.UpdateKhoAsync(request);
+                var result = _sieuThiRepository.UpdateKho(request);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy kho với mã {request.MaKho}");
+                    return BadRequest("Không thể cập nhật kho");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
+                return Ok("Cập nhật kho thành công");
             }
             catch (Exception ex)
             {
@@ -142,23 +127,18 @@ namespace SieuThiService.Controllers
         /// <param name="maKho">Mã kho cần xóa</param>
         /// <returns>Kết quả xóa kho</returns>
         [HttpDelete("xoa-kho/{maKho}")]
-        public async Task<ActionResult<DeleteKhoResponse>> DeleteKho(int maKho)
+        public ActionResult DeleteKho(int maKho)
         {
             try
             {
-                var result = await _sieuThiRepository.DeleteKhoAsync(maKho);
+                var result = _sieuThiRepository.DeleteKho(maKho);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy kho với mã {maKho}");
+                    return BadRequest("Không thể xóa kho");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
+                return Ok("Xóa kho thành công");
             }
             catch (Exception ex)
             {
@@ -172,7 +152,7 @@ namespace SieuThiService.Controllers
         /// <param name="request">Thông tin xóa tồn kho</param>
         /// <returns>Kết quả xóa</returns>
         [HttpDelete("xoa-ton-kho")]
-        public async Task<ActionResult<DeleteTonKhoResponse>> DeleteTonKho([FromBody] DeleteTonKhoRequest request)
+        public ActionResult DeleteTonKho([FromBody] DeleteTonKhoRequest request)
         {
             try
             {
@@ -181,19 +161,14 @@ namespace SieuThiService.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var result = await _sieuThiRepository.DeleteTonKhoAsync(request);
+                var result = _sieuThiRepository.DeleteTonKho(request);
                 
-                if (result == null)
+                if (!result)
                 {
-                    return NotFound($"Không tìm thấy kho với mã {request.MaKho}");
+                    return BadRequest("Không thể xóa tồn kho");
                 }
 
-                if (!result.Success)
-                {
-                    return BadRequest(result);
-                }
-
-                return Ok(result);
+                return Ok("Xóa tồn kho thành công");
             }
             catch (Exception ex)
             {
