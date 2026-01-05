@@ -19,5 +19,8 @@ namespace NongDanService.Models.DTOs
         // Thông tin bổ sung từ join
         public string? TenNongDan { get; set; }
         public string? TenDaiLy { get; set; }
+        
+        // Chi tiết đơn hàng (danh sách các lô sản phẩm)
+        public List<ChiTietDonHangDTO>? ChiTietDonHang { get; set; }
     }
 }

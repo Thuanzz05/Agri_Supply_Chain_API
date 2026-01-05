@@ -13,7 +13,6 @@ builder.Services.AddScoped<INongDanRepository, NongDanRepository>();
 builder.Services.AddScoped<ITrangTraiRepository, TrangTraiRepository>();
 builder.Services.AddScoped<ILoNongSanRepository, LoNongSanRepository>();
 builder.Services.AddScoped<IDonHangDaiLyRepository, DonHangDaiLyRepository>();
-builder.Services.AddScoped<IChiTietDonHangRepository, ChiTietDonHangRepository>();
 
 // Service
 builder.Services.AddScoped<ISanPhamService, SanPhamService>();
@@ -21,7 +20,6 @@ builder.Services.AddScoped<INongDanService, NongDanService.Services.NongDanServi
 builder.Services.AddScoped<ITrangTraiService, TrangTraiService>();
 builder.Services.AddScoped<ILoNongSanService, LoNongSanService>();
 builder.Services.AddScoped<IDonHangDaiLyService, DonHangDaiLyService>();
-builder.Services.AddScoped<IChiTietDonHangService, ChiTietDonHangService>();
 
 // Controllers
 builder.Services.AddControllers();
