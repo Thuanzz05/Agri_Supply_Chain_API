@@ -103,6 +103,7 @@ namespace SieuThiService.Controllers
             }
         }
 
+        [HttpPut("cap-nhat-chi-tiet")]
         public ActionResult UpdateChiTietDonHang([FromBody] UpdateChiTietDonHangRequest request)
         {
             try
@@ -152,7 +153,7 @@ namespace SieuThiService.Controllers
             }
         }
 
-        
+        [HttpPut("huy-don-hang/{id}")]
         public ActionResult HuyDonHang(int id)
         {
             try
