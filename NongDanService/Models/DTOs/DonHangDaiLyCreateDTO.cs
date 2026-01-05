@@ -14,10 +14,11 @@ namespace NongDanService.Models.DTOs
         
         public DateTime? NgayGiao { get; set; }
         
-        public decimal? TongSoLuong { get; set; }
-        
-        public decimal? TongGiaTri { get; set; }
-        
         public string? GhiChu { get; set; }
+        
+        /// <summary>
+        /// Danh sách chi tiết đơn hàng (các lô sản phẩm)
+        /// </summary>
+        public List<ChiTietDonHangItemDTO>? ChiTietDonHang { get; set; }
     }
 }
