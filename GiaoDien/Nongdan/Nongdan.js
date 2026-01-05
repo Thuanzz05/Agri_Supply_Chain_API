@@ -88,12 +88,11 @@ async function loadDB() {
         console.log('Loaded data from API:', DB);
     } catch (error) {
         console.error('Error loading data:', error);
-        alert('Không thể kết nối đến server. Vui lòng kiểm tra Gateway đang chạy.');
     }
 }
 
 // =============================================
-// Status Helpers
+// Helper Functions
 // =============================================
 
 function statusDisplay(status) {
@@ -109,22 +108,17 @@ function statusDisplay(status) {
         'da_giao': 'Đã giao',
         'da_ban': 'Đã bán'
     };
-    return map[status] || status || '';
-}
-
-function getExpiryStatus(expiry) {
-    if (!expiry) return 'ok';
-    const now = new Date();
-    const d = new Date(expiry);
-    const diffDays = Math.ceil((d - now) / (1000*60*60*24));
-    if (diffDays < 0) return 'expired';
-    if (diffDays <= 7) return 'warning';
-    return 'ok';
+    return map[status] || status || '-';
 }
 
 function formatDate(dateStr) {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('vi-VN');
+}
+
+function formatNumber(num) {
+    if (!num && num !== 0) return '-';
+    return new Intl.NumberFormat('vi-VN').format(num);
 }
 
 // =============================================
@@ -135,13 +129,7 @@ function renderKPIs() {
     document.getElementById('kpi-farms').textContent = DB.farms.length;
     document.getElementById('kpi-batches').textContent = DB.batches.length;
     document.getElementById('kpi-orders').textContent = DB.orders.length;
-    
-    // Đếm cảnh báo hạn dùng
-    const alerts = DB.batches.filter(b => {
-        const status = getExpiryStatus(b.hanSuDung);
-        return status === 'warning' || status === 'expired';
-    });
-    document.getElementById('kpi-alerts').textContent = alerts.length;
+    document.getElementById('kpi-alerts').textContent = 0;
 }
 
 function renderFarms() {
@@ -149,13 +137,18 @@ function renderFarms() {
     if (!tbody) return;
     tbody.innerHTML = '';
     
+    if (DB.farms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">Chưa có trang trại nào</td></tr>';
+        return;
+    }
+    
     DB.farms.forEach(f => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${f.maTrangTrai}</td>
-            <td>${f.tenTrangTrai}</td>
+            <td>${f.tenTrangTrai || '-'}</td>
             <td>${f.diaChi || '-'}</td>
-            <td>${f.chungNhan || '-'}</td>
+            <td>${f.soChungNhan || '-'}</td>
             <td>
                 <button class="btn small" onclick="editFarm(${f.maTrangTrai})">Sửa</button>
                 <button class="btn small btn-danger" onclick="deleteFarm(${f.maTrangTrai})">Xóa</button>
@@ -169,21 +162,23 @@ function renderBatches() {
     if (!tbody) return;
     tbody.innerHTML = '';
     
+    if (DB.batches.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">Chưa có lô nông sản nào</td></tr>';
+        return;
+    }
+    
     DB.batches.forEach(b => {
-        const status = getExpiryStatus(b.hanSuDung);
         const tr = document.createElement('tr');
-        tr.className = status === 'expired' ? 'critical' : (status === 'warning' ? 'warning' : '');
-        
         tr.innerHTML = `
-            <td>${b.maLoNongSan}</td>
+            <td>${b.maLo}</td>
             <td>${b.tenTrangTrai || '-'}</td>
             <td>${b.tenSanPham || '-'}</td>
-            <td>${b.soLuong} ${b.donVi || ''}</td>
-            <td>${formatDate(b.hanSuDung)}</td>
+            <td>${formatNumber(b.soLuongHienTai)}</td>
+            <td>${b.maQR || '-'}</td>
             <td>${statusDisplay(b.trangThai)}</td>
             <td>
-                <button class="btn small" onclick="editBatch(${b.maLoNongSan})">Sửa</button>
-                <button class="btn small btn-danger" onclick="deleteBatch(${b.maLoNongSan})">Xóa</button>
+                <button class="btn small" onclick="editBatch(${b.maLo})">Sửa</button>
+                <button class="btn small btn-danger" onclick="deleteBatch(${b.maLo})">Xóa</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -193,6 +188,11 @@ function renderOrders() {
     const tbody = document.querySelector('#table-incoming-orders tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
+    
+    if (DB.orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">Chưa có đơn hàng nào</td></tr>';
+        return;
+    }
     
     DB.orders.forEach(o => {
         const tr = document.createElement('tr');
@@ -206,16 +206,16 @@ function renderOrders() {
         } else if (status === 'da_xac_nhan') {
             actions = `<button class="btn small" onclick="xuatDon(${o.maDonHang})">Xuất đơn</button>`;
         } else {
-            actions = `<span>${statusDisplay(status)}</span>`;
+            actions = `<span style="color:#888;">${statusDisplay(status)}</span>`;
         }
         
         tr.innerHTML = `
             <td>${o.maDonHang}</td>
             <td>${o.loaiDon || '-'}</td>
-            <td>${o.tongSoLuong || 0}</td>
+            <td>${formatNumber(o.tongSoLuong)}</td>
             <td>${o.tenDaiLy || '-'}</td>
             <td>${formatDate(o.ngayDat)}</td>
-            <td>${statusDisplay(status)}</td>
+            <td><span class="status-badge status-${status}">${statusDisplay(status)}</span></td>
             <td>${actions}</td>`;
         tbody.appendChild(tr);
     });
@@ -226,16 +226,22 @@ function renderKhoNhap() {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    const inStock = DB.batches.filter(b => b.trangThai === 'tai_trang_trai' || !b.trangThai);
+    const inStock = DB.batches.filter(b => b.soLuongHienTai > 0);
+    
+    if (inStock.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">Không có hàng tồn kho</td></tr>';
+        return;
+    }
+    
     inStock.forEach(b => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${b.maLoNongSan}</td>
+            <td>${b.maLo}</td>
             <td>${b.tenSanPham || '-'}</td>
-            <td>${b.soLuong} ${b.donVi || ''}</td>
+            <td>${formatNumber(b.soLuongHienTai)}</td>
             <td>${b.tenTrangTrai || '-'}</td>
-            <td>${formatDate(b.hanSuDung)}</td>
-            <td>${b.soLuong > 0 ? 'Còn hàng' : 'Hết'}</td>`;
+            <td>${b.maQR || '-'}</td>
+            <td><span style="color:green;">Còn hàng</span></td>`;
         tbody.appendChild(tr);
     });
 }
@@ -246,51 +252,32 @@ function renderKhoXuat() {
     tbody.innerHTML = '';
     
     const shipped = DB.orders.filter(o => o.trangThai === 'da_xuat' || o.trangThai === 'da_nhan');
+    
+    if (shipped.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">Chưa có đơn xuất nào</td></tr>';
+        return;
+    }
+    
     shipped.forEach(o => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${o.maDonHang}</td>
             <td>${o.loaiDon || '-'}</td>
-            <td>${o.tongSoLuong || 0}</td>
+            <td>${formatNumber(o.tongSoLuong)}</td>
             <td>${o.tenDaiLy || '-'}</td>
             <td>${formatDate(o.ngayGiao)}</td>`;
         tbody.appendChild(tr);
     });
 }
 
-function renderAlerts() {
-    const tbody = document.querySelector('#table-alerts tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    DB.batches.forEach(b => {
-        const status = getExpiryStatus(b.hanSuDung);
-        if (status === 'ok') return;
-        
-        const now = new Date();
-        const d = new Date(b.hanSuDung);
-        const diffDays = Math.ceil((d - now) / (1000*60*60*24));
-        
-        const tr = document.createElement('tr');
-        tr.className = status === 'expired' ? 'critical' : 'warning';
-        tr.innerHTML = `
-            <td>${b.maLoNongSan}</td>
-            <td>${b.tenSanPham || '-'}</td>
-            <td>${formatDate(b.hanSuDung)}</td>
-            <td>${diffDays} ngày</td>
-            <td>${status === 'expired' ? 'Đã hết hạn' : 'Sắp hết hạn'}</td>`;
-        tbody.appendChild(tr);
-    });
-}
-
 function renderReports() {
-    const totalProduction = DB.batches.reduce((sum, b) => sum + (parseFloat(b.soLuong) || 0), 0);
-    const shippedOrders = DB.orders.filter(o => o.trangThai === 'da_xuat' || o.trangThai === 'da_nhan');
-    const totalShipped = shippedOrders.reduce((sum, o) => sum + (parseFloat(o.tongSoLuong) || 0), 0);
+    const totalProduction = DB.batches.reduce((sum, b) => sum + (parseFloat(b.soLuongBanDau) || 0), 0);
+    const currentStock = DB.batches.reduce((sum, b) => sum + (parseFloat(b.soLuongHienTai) || 0), 0);
+    const totalShipped = totalProduction - currentStock;
     
-    document.getElementById('report-production').textContent = totalProduction + ' đơn vị';
-    document.getElementById('report-shipped').textContent = totalShipped + ' đơn vị';
-    document.getElementById('report-stock').textContent = Math.max(0, totalProduction - totalShipped) + ' đơn vị';
+    document.getElementById('report-production').textContent = formatNumber(totalProduction) + ' đơn vị';
+    document.getElementById('report-shipped').textContent = formatNumber(totalShipped) + ' đơn vị';
+    document.getElementById('report-stock').textContent = formatNumber(currentStock) + ' đơn vị';
 }
 
 function refreshAll() {
@@ -299,7 +286,6 @@ function refreshAll() {
     renderOrders();
     renderKhoNhap();
     renderKhoXuat();
-    renderAlerts();
     renderKPIs();
     renderReports();
 }
@@ -326,8 +312,7 @@ document.getElementById('btn-new-farm')?.addEventListener('click', () => {
         <h3>Thêm trang trại mới</h3>
         <label>Tên trang trại</label><input id="farm-name" />
         <label>Địa chỉ</label><input id="farm-address" />
-        <label>Diện tích (ha)</label><input id="farm-area" type="number" step="0.1" />
-        <label>Chứng nhận</label><input id="farm-cert" />
+        <label>Số chứng nhận</label><input id="farm-cert" />
         <div style="margin-top:10px">
             <button onclick="saveFarm()" class="btn">Tạo</button>
             <button onclick="closeModal()" class="btn" style="background:#ccc;color:#333;">Hủy</button>
@@ -342,8 +327,7 @@ window.editFarm = function(id) {
         <h3>Sửa trang trại</h3>
         <label>Tên trang trại</label><input id="farm-name" value="${farm.tenTrangTrai || ''}" />
         <label>Địa chỉ</label><input id="farm-address" value="${farm.diaChi || ''}" />
-        <label>Diện tích (ha)</label><input id="farm-area" type="number" step="0.1" value="${farm.dienTich || ''}" />
-        <label>Chứng nhận</label><input id="farm-cert" value="${farm.chungNhan || ''}" />
+        <label>Số chứng nhận</label><input id="farm-cert" value="${farm.soChungNhan || ''}" />
         <div style="margin-top:10px">
             <button onclick="saveFarm(${id})" class="btn">Lưu</button>
             <button onclick="closeModal()" class="btn" style="background:#ccc;color:#333;">Hủy</button>
@@ -353,11 +337,10 @@ window.editFarm = function(id) {
 
 window.saveFarm = async function(id = null) {
     const data = {
-        maNongDan: maNongDan,
+        maNongDan: parseInt(maNongDan),
         tenTrangTrai: document.getElementById('farm-name').value,
         diaChi: document.getElementById('farm-address').value,
-        dienTich: parseFloat(document.getElementById('farm-area').value) || 0,
-        chungNhan: document.getElementById('farm-cert').value
+        soChungNhan: document.getElementById('farm-cert').value
     };
     
     if (!data.tenTrangTrai) { alert('Vui lòng nhập tên trang trại'); return; }
@@ -365,13 +348,14 @@ window.saveFarm = async function(id = null) {
     try {
         if (id) {
             await apiCall(API.trangTrai.update(id), 'PUT', data);
+            alert('Cập nhật thành công!');
         } else {
             await apiCall(API.trangTrai.create, 'POST', data);
+            alert('Thêm trang trại thành công!');
         }
         await loadDB();
         refreshAll();
         closeModal();
-        alert(id ? 'Cập nhật thành công!' : 'Thêm trang trại thành công!');
     } catch (error) {
         alert('Lỗi: ' + error.message);
     }
@@ -397,16 +381,19 @@ document.querySelectorAll('#btn-new-batch').forEach(btn => btn.addEventListener(
     const farmOptions = DB.farms.map(f => `<option value="${f.maTrangTrai}">${f.tenTrangTrai}</option>`).join('');
     const productOptions = DB.sanPham.map(p => `<option value="${p.maSanPham}">${p.tenSanPham}</option>`).join('');
     
+    if (DB.farms.length === 0) {
+        alert('Vui lòng tạo trang trại trước!');
+        return;
+    }
+    
     openModal(`
         <h3>Đăng ký lô nông sản</h3>
         <label>Trang trại</label>
-        <select id="batch-farm">${farmOptions || '<option value="">Chưa có trang trại</option>'}</select>
+        <select id="batch-farm">${farmOptions}</select>
         <label>Sản phẩm</label>
         <select id="batch-product">${productOptions || '<option value="">Chưa có sản phẩm</option>'}</select>
-        <label>Số lượng</label><input id="batch-qty" type="number" />
-        <label>Đơn vị</label><input id="batch-unit" value="kg" />
-        <label>Ngày thu hoạch</label><input id="batch-harvest" type="date" />
-        <label>Hạn sử dụng</label><input id="batch-expiry" type="date" />
+        <label>Số lượng ban đầu</label><input id="batch-qty" type="number" />
+        <label>Số chứng nhận lô</label><input id="batch-cert" />
         <div style="margin-top:10px">
             <button onclick="saveBatch()" class="btn">Tạo lô</button>
             <button onclick="closeModal()" class="btn" style="background:#ccc;color:#333;">Hủy</button>
@@ -415,7 +402,7 @@ document.querySelectorAll('#btn-new-batch').forEach(btn => btn.addEventListener(
 }));
 
 window.editBatch = function(id) {
-    const batch = DB.batches.find(b => b.maLoNongSan === id);
+    const batch = DB.batches.find(b => b.maLo === id);
     if (!batch) return;
     
     const farmOptions = DB.farms.map(f => 
@@ -431,10 +418,15 @@ window.editBatch = function(id) {
         <select id="batch-farm">${farmOptions}</select>
         <label>Sản phẩm</label>
         <select id="batch-product">${productOptions}</select>
-        <label>Số lượng</label><input id="batch-qty" type="number" value="${batch.soLuong || ''}" />
-        <label>Đơn vị</label><input id="batch-unit" value="${batch.donVi || 'kg'}" />
-        <label>Ngày thu hoạch</label><input id="batch-harvest" type="date" value="${batch.ngayThuHoach ? batch.ngayThuHoach.split('T')[0] : ''}" />
-        <label>Hạn sử dụng</label><input id="batch-expiry" type="date" value="${batch.hanSuDung ? batch.hanSuDung.split('T')[0] : ''}" />
+        <label>Số lượng hiện tại</label><input id="batch-qty" type="number" value="${batch.soLuongHienTai || ''}" />
+        <label>Số chứng nhận lô</label><input id="batch-cert" value="${batch.soChungNhanLo || ''}" />
+        <label>Trạng thái</label>
+        <select id="batch-status">
+            <option value="tai_trang_trai" ${batch.trangThai === 'tai_trang_trai' ? 'selected' : ''}>Tại trang trại</option>
+            <option value="dang_van_chuyen" ${batch.trangThai === 'dang_van_chuyen' ? 'selected' : ''}>Đang vận chuyển</option>
+            <option value="da_giao" ${batch.trangThai === 'da_giao' ? 'selected' : ''}>Đã giao</option>
+            <option value="da_ban" ${batch.trangThai === 'da_ban' ? 'selected' : ''}>Đã bán</option>
+        </select>
         <div style="margin-top:10px">
             <button onclick="saveBatch(${id})" class="btn">Lưu</button>
             <button onclick="closeModal()" class="btn" style="background:#ccc;color:#333;">Hủy</button>
@@ -446,28 +438,32 @@ window.saveBatch = async function(id = null) {
     const data = {
         maTrangTrai: parseInt(document.getElementById('batch-farm').value),
         maSanPham: parseInt(document.getElementById('batch-product').value),
-        soLuong: parseFloat(document.getElementById('batch-qty').value) || 0,
-        donVi: document.getElementById('batch-unit').value || 'kg',
-        ngayThuHoach: document.getElementById('batch-harvest').value || null,
-        hanSuDung: document.getElementById('batch-expiry').value || null,
-        trangThai: 'tai_trang_trai'
+        soLuongBanDau: parseFloat(document.getElementById('batch-qty').value) || 0,
+        soChungNhanLo: document.getElementById('batch-cert')?.value || ''
     };
     
-    if (!data.maTrangTrai || !data.maSanPham || !data.soLuong) {
-        alert('Vui lòng chọn trang trại, sản phẩm và nhập số lượng');
+    // Nếu đang edit, thêm trạng thái
+    if (id) {
+        data.soLuongHienTai = data.soLuongBanDau;
+        data.trangThai = document.getElementById('batch-status')?.value || 'tai_trang_trai';
+    }
+    
+    if (!data.maTrangTrai || !data.maSanPham || !data.soLuongBanDau) {
+        alert('Vui lòng điền đầy đủ thông tin');
         return;
     }
     
     try {
         if (id) {
             await apiCall(API.loNongSan.update(id), 'PUT', data);
+            alert('Cập nhật thành công!');
         } else {
             await apiCall(API.loNongSan.create, 'POST', data);
+            alert('Tạo lô nông sản thành công!');
         }
         await loadDB();
         refreshAll();
         closeModal();
-        alert(id ? 'Cập nhật thành công!' : 'Tạo lô nông sản thành công!');
     } catch (error) {
         alert('Lỗi: ' + error.message);
     }
@@ -490,6 +486,7 @@ window.deleteBatch = async function(id) {
 // =============================================
 
 window.xacNhanDon = async function(id) {
+    if (!confirm('Xác nhận đơn hàng này?')) return;
     try {
         await apiCall(API.donHangNongDan.xacNhan(id), 'PUT');
         await loadDB();
@@ -501,6 +498,7 @@ window.xacNhanDon = async function(id) {
 };
 
 window.xuatDon = async function(id) {
+    if (!confirm('Xuất đơn hàng này?')) return;
     try {
         await apiCall(API.donHangNongDan.xuatDon(id), 'PUT');
         await loadDB();
