@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using DaiLyService.Models.DTOs;
+using System.Data;
 
 namespace DaiLyService.Data
 {
@@ -17,14 +18,8 @@ namespace DaiLyService.Data
             var list = new List<DonHangDaiLyDTO>();
 
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                SELECT dh.MaDonHang, dhd.MaDaiLy, dhd.MaNongDan, nd.HoTen as TenNongDan,
-                       dh.NgayDat, dh.NgayGiao, dh.TrangThai, dh.TongSoLuong, dh.TongGiaTri, dh.GhiChu
-                FROM DonHang dh
-                INNER JOIN DonHangDaiLy dhd ON dh.MaDonHang = dhd.MaDonHang
-                LEFT JOIN NongDan nd ON dhd.MaNongDan = nd.MaNongDan
-                WHERE dh.LoaiDon = 'daily_to_nongdan'
-                ORDER BY dh.NgayDat DESC", conn);
+            using var cmd = new SqlCommand("sp_DonHangDaiLy_GetAll", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
 
             conn.Open();
             using var reader = cmd.ExecuteReader();
@@ -43,14 +38,8 @@ namespace DaiLyService.Data
             conn.Open();
 
             // Lấy thông tin đơn hàng
-            using var cmd = new SqlCommand(@"
-                SELECT dh.MaDonHang, dhd.MaDaiLy, dhd.MaNongDan, nd.HoTen as TenNongDan,
-                       dh.NgayDat, dh.NgayGiao, dh.TrangThai, dh.TongSoLuong, dh.TongGiaTri, dh.GhiChu
-                FROM DonHang dh
-                INNER JOIN DonHangDaiLy dhd ON dh.MaDonHang = dhd.MaDonHang
-                LEFT JOIN NongDan nd ON dhd.MaNongDan = nd.MaNongDan
-                WHERE dh.MaDonHang = @MaDonHang", conn);
-
+            using var cmd = new SqlCommand("sp_DonHangDaiLy_GetById", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDonHang", maDonHang);
 
             DonHangDaiLyDTO? donHang = null;
@@ -75,15 +64,8 @@ namespace DaiLyService.Data
             var list = new List<DonHangDaiLyDTO>();
 
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                SELECT dh.MaDonHang, dhd.MaDaiLy, dhd.MaNongDan, nd.HoTen as TenNongDan,
-                       dh.NgayDat, dh.NgayGiao, dh.TrangThai, dh.TongSoLuong, dh.TongGiaTri, dh.GhiChu
-                FROM DonHang dh
-                INNER JOIN DonHangDaiLy dhd ON dh.MaDonHang = dhd.MaDonHang
-                LEFT JOIN NongDan nd ON dhd.MaNongDan = nd.MaNongDan
-                WHERE dhd.MaDaiLy = @MaDaiLy
-                ORDER BY dh.NgayDat DESC", conn);
-
+            using var cmd = new SqlCommand("sp_DonHangDaiLy_GetByMaDaiLy", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
 
             conn.Open();
@@ -102,70 +84,50 @@ namespace DaiLyService.Data
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
 
-            using var transaction = conn.BeginTransaction();
+            // Tính tổng số lượng và tổng giá trị
+            decimal tongSoLuong = dto.ChiTietDonHang.Sum(x => x.SoLuong);
+            decimal tongGiaTri = dto.ChiTietDonHang.Sum(x => x.SoLuong * (x.DonGia ?? 0));
 
-            try
+            // 1. Tạo DonHang bằng SP
+            using var cmdDonHang = new SqlCommand("sp_DonHangDaiLy_Create", conn);
+            cmdDonHang.CommandType = CommandType.StoredProcedure;
+
+            cmdDonHang.Parameters.AddWithValue("@MaDaiLy", dto.MaDaiLy);
+            cmdDonHang.Parameters.AddWithValue("@MaNongDan", dto.MaNongDan);
+            cmdDonHang.Parameters.AddWithValue("@TongSoLuong", tongSoLuong);
+            cmdDonHang.Parameters.AddWithValue("@TongGiaTri", tongGiaTri);
+            cmdDonHang.Parameters.AddWithValue("@GhiChu", (object?)dto.GhiChu ?? DBNull.Value);
+
+            var outputParam = new SqlParameter("@MaDonHang", SqlDbType.Int)
             {
-                // Tính tổng số lượng và tổng giá trị
-                decimal tongSoLuong = dto.ChiTietDonHang.Sum(x => x.SoLuong);
-                decimal tongGiaTri = dto.ChiTietDonHang.Sum(x => x.SoLuong * (x.DonGia ?? 0));
+                Direction = ParameterDirection.Output
+            };
+            cmdDonHang.Parameters.Add(outputParam);
 
-                // 1. Tạo DonHang
-                using var cmdDonHang = new SqlCommand(@"
-                    INSERT INTO DonHang (LoaiDon, TrangThai, TongSoLuong, TongGiaTri, GhiChu)
-                    OUTPUT INSERTED.MaDonHang
-                    VALUES ('daily_to_nongdan', 'chua_nhan', @TongSoLuong, @TongGiaTri, @GhiChu)", conn, transaction);
+            cmdDonHang.ExecuteNonQuery();
+            int maDonHang = (int)outputParam.Value;
 
-                cmdDonHang.Parameters.AddWithValue("@TongSoLuong", tongSoLuong);
-                cmdDonHang.Parameters.AddWithValue("@TongGiaTri", tongGiaTri);
-                cmdDonHang.Parameters.AddWithValue("@GhiChu", (object?)dto.GhiChu ?? DBNull.Value);
-
-                int maDonHang = (int)cmdDonHang.ExecuteScalar();
-
-                // 2. Tạo DonHangDaiLy
-                using var cmdDonHangDaiLy = new SqlCommand(@"
-                    INSERT INTO DonHangDaiLy (MaDonHang, MaDaiLy, MaNongDan)
-                    VALUES (@MaDonHang, @MaDaiLy, @MaNongDan)", conn, transaction);
-
-                cmdDonHangDaiLy.Parameters.AddWithValue("@MaDonHang", maDonHang);
-                cmdDonHangDaiLy.Parameters.AddWithValue("@MaDaiLy", dto.MaDaiLy);
-                cmdDonHangDaiLy.Parameters.AddWithValue("@MaNongDan", dto.MaNongDan);
-                cmdDonHangDaiLy.ExecuteNonQuery();
-
-                // 3. Tạo ChiTietDonHang
-                foreach (var chiTiet in dto.ChiTietDonHang)
-                {
-                    using var cmdChiTiet = new SqlCommand(@"
-                        INSERT INTO ChiTietDonHang (MaDonHang, MaLo, SoLuong, DonGia, ThanhTien)
-                        VALUES (@MaDonHang, @MaLo, @SoLuong, @DonGia, @ThanhTien)", conn, transaction);
-
-                    cmdChiTiet.Parameters.AddWithValue("@MaDonHang", maDonHang);
-                    cmdChiTiet.Parameters.AddWithValue("@MaLo", chiTiet.MaLo);
-                    cmdChiTiet.Parameters.AddWithValue("@SoLuong", chiTiet.SoLuong);
-                    cmdChiTiet.Parameters.AddWithValue("@DonGia", (object?)chiTiet.DonGia ?? DBNull.Value);
-                    cmdChiTiet.Parameters.AddWithValue("@ThanhTien", chiTiet.SoLuong * (chiTiet.DonGia ?? 0));
-                    cmdChiTiet.ExecuteNonQuery();
-                }
-
-                transaction.Commit();
-                return maDonHang;
-            }
-            catch
+            // 2. Tạo ChiTietDonHang bằng SP
+            foreach (var chiTiet in dto.ChiTietDonHang)
             {
-                transaction.Rollback();
-                throw;
+                using var cmdChiTiet = new SqlCommand("sp_ChiTietDonHang_Create", conn);
+                cmdChiTiet.CommandType = CommandType.StoredProcedure;
+
+                cmdChiTiet.Parameters.AddWithValue("@MaDonHang", maDonHang);
+                cmdChiTiet.Parameters.AddWithValue("@MaLo", chiTiet.MaLo);
+                cmdChiTiet.Parameters.AddWithValue("@SoLuong", chiTiet.SoLuong);
+                cmdChiTiet.Parameters.AddWithValue("@DonGia", (object?)chiTiet.DonGia ?? DBNull.Value);
+                cmdChiTiet.ExecuteNonQuery();
             }
+
+            return maDonHang;
         }
 
         public bool UpdateTrangThai(int maDonHang, DonHangDaiLyUpdateDTO dto)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                UPDATE DonHang
-                SET TrangThai = COALESCE(@TrangThai, TrangThai),
-                    NgayGiao = COALESCE(@NgayGiao, NgayGiao),
-                    GhiChu = COALESCE(@GhiChu, GhiChu)
-                WHERE MaDonHang = @MaDonHang", conn);
+            using var cmd = new SqlCommand("sp_DonHang_UpdateTrangThai", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.AddWithValue("@MaDonHang", maDonHang);
             cmd.Parameters.AddWithValue("@TrangThai", (object?)dto.TrangThai ?? DBNull.Value);
@@ -179,51 +141,20 @@ namespace DaiLyService.Data
         public bool Delete(int maDonHang)
         {
             using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand("sp_DonHangDaiLy_Delete", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@MaDonHang", maDonHang);
+
             conn.Open();
-
-            using var transaction = conn.BeginTransaction();
-
-            try
-            {
-                // Xóa ChiTietDonHang trước
-                using var cmdChiTiet = new SqlCommand(
-                    "DELETE FROM ChiTietDonHang WHERE MaDonHang = @MaDonHang", conn, transaction);
-                cmdChiTiet.Parameters.AddWithValue("@MaDonHang", maDonHang);
-                cmdChiTiet.ExecuteNonQuery();
-
-                // Xóa DonHangDaiLy
-                using var cmdDonHangDaiLy = new SqlCommand(
-                    "DELETE FROM DonHangDaiLy WHERE MaDonHang = @MaDonHang", conn, transaction);
-                cmdDonHangDaiLy.Parameters.AddWithValue("@MaDonHang", maDonHang);
-                cmdDonHangDaiLy.ExecuteNonQuery();
-
-                // Xóa DonHang
-                using var cmdDonHang = new SqlCommand(
-                    "DELETE FROM DonHang WHERE MaDonHang = @MaDonHang", conn, transaction);
-                cmdDonHang.Parameters.AddWithValue("@MaDonHang", maDonHang);
-                int result = cmdDonHang.ExecuteNonQuery();
-
-                transaction.Commit();
-                return result > 0;
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
+            return cmd.ExecuteNonQuery() > 0;
         }
 
         private List<ChiTietDonHangDTO> GetChiTietDonHang(SqlConnection conn, int maDonHang)
         {
             var list = new List<ChiTietDonHangDTO>();
 
-            using var cmd = new SqlCommand(@"
-                SELECT ct.MaLo, sp.TenSanPham, ct.SoLuong, ct.DonGia, ct.ThanhTien
-                FROM ChiTietDonHang ct
-                LEFT JOIN LoNongSan lo ON ct.MaLo = lo.MaLo
-                LEFT JOIN SanPham sp ON lo.MaSanPham = sp.MaSanPham
-                WHERE ct.MaDonHang = @MaDonHang", conn);
-
+            using var cmd = new SqlCommand("sp_ChiTietDonHang_GetByMaDonHang", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDonHang", maDonHang);
 
             using var reader = cmd.ExecuteReader();
