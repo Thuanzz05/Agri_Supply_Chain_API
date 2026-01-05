@@ -84,11 +84,11 @@
         <!-- Batches -->
         <section id="batches" class="page">
             <div class="page-header">
-                <h2>Quản lý lô sản phẩm</h2>
+                <h2>Quản lý lô nông sản</h2>
                 <button id="btn-new-batch" class="btn">+ Đăng ký lô mới</button>
             </div>
             <table id="table-batches" class="table">
-                <thead><tr><th>ID</th><th>Trang trại</th><th>Sản phẩm</th><th>SL</th><th>Hạn dùng</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                <thead><tr><th>Mã lô</th><th>Trang trại</th><th>Sản phẩm</th><th>SL hiện tại</th><th>Mã QR</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
                 <tbody></tbody>
             </table>
         </section>
@@ -100,14 +100,13 @@
             </div>
             <div class="lists">
                 <div class="list">
-                    <h4>Đơn từ Đại lý gửi tới tôi</h4>
+                    <h4>Đơn hàng từ Đại lý</h4>
                     <table id="table-incoming-orders" class="table">
-                        <thead><tr><th>MãPhiếu</th><th>MãLô — Sản phẩm</th><th>SốLượng</th><th>Đại lý</th><th>Ngày tạo</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                        <thead><tr><th>Mã đơn</th><th>Loại đơn</th><th>Số lượng</th><th>Đại lý</th><th>Ngày đặt</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
             </div>
-            <!-- Farmer's own orders table removed; incoming orders handled above -->
         </section>
 
         <!-- Kho (Nhập / Xuất) -->
@@ -117,21 +116,20 @@
             </div>
             <div class="lists">
                 <div class="list">
-                    <h4>Tồn kho (Lô sản phẩm của tôi)</h4>
-                    <p style="color:#666;margin-bottom:12px;">Danh sách lô sản phẩm đang tồn kho</p>
+                    <h4>Tồn kho (Lô nông sản)</h4>
                     <table id="table-kho-nhap" class="table">
-                        <thead><tr><th>Mã lô</th><th>Sản phẩm</th><th>SL</th><th>Trang trại</th><th>Hạn dùng</th><th>Trạng thái</th></tr></thead>
+                        <thead><tr><th>Mã lô</th><th>Sản phẩm</th><th>SL hiện tại</th><th>Trang trại</th><th>Mã QR</th><th>Trạng thái</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
                 <div class="list">
                     <h4>Lịch sử xuất hàng</h4>
-                    <p style="color:#666;margin-bottom:12px;">Danh sách hàng đã xuất cho Đại lý</p>
                     <table id="table-kho-xuat" class="table">
-                        <thead><tr><th>Mã đơn</th><th>Mã lô</th><th>SL</th><th>Kho xuất</th><th>Ngày</th></tr></thead>
+                        <thead><tr><th>Mã đơn</th><th>Loại đơn</th><th>Số lượng</th><th>Đại lý</th><th>Ngày giao</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
+            </div>
         </section>
 
         <!-- Reports -->
