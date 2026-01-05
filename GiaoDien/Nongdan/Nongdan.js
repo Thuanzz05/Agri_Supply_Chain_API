@@ -21,7 +21,7 @@ function loadCurrentUser() {
     if (typeof AuthHelper !== 'undefined') {
         currentUser = AuthHelper.getCurrentUser();
     } else {
-        const stored = sessionStorage.getItem('currentUser');
+        const stored = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
         currentUser = stored ? JSON.parse(stored) : null;
     }
     
@@ -30,8 +30,16 @@ function loadCurrentUser() {
         return null;
     }
     
-    // Lấy maNongDan từ currentUser
-    maNongDan = currentUser.maNongDan || currentUser.maNong || currentUser.id;
+    // Lấy maNongDan từ currentUser (đã được trả về từ API login)
+    maNongDan = currentUser.MaNongDan;
+    
+    if (!maNongDan) {
+        console.error('Không tìm thấy MaNongDan trong thông tin đăng nhập');
+        alert('Lỗi: Tài khoản không liên kết với nông dân nào!');
+        return null;
+    }
+    
+    console.log('Đăng nhập với MaNongDan:', maNongDan);
     return currentUser;
 }
 
@@ -545,7 +553,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Hiển thị tên user
     const userDisplay = document.getElementById('current-user');
     if (userDisplay && currentUser) {
-        userDisplay.textContent = currentUser.fullName || currentUser.hoTen || 'Nông dân';
+        userDisplay.textContent = currentUser.HoTen || currentUser.TenDangNhap || 'Nông dân';
     }
     
     // Load data từ API
