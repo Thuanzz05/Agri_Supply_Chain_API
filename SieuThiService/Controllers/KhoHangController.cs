@@ -16,11 +16,6 @@ namespace SieuThiService.Controllers
             _sieuThiRepository = sieuThiRepository;
         }
 
-        /// <summary>
-        /// Lấy danh sách kho hàng của siêu thị (chỉ thông tin cơ bản)
-        /// </summary>
-        /// <param name="maSieuThi">Mã siêu thị</param>
-        /// <returns>Danh sách kho hàng cơ bản</returns>
         [HttpGet("sieu-thi/{maSieuThi}")]
         public ActionResult<List<KhoSimpleInfo>> GetDanhSachKhoBySieuThi(int maSieuThi)
         {
@@ -36,11 +31,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// Lấy thông tin chi tiết một kho hàng
-        /// </summary>
-        /// <param name="maKho">Mã kho</param>
-        /// <returns>Thông tin chi tiết kho hàng</returns>
         [HttpGet("{maKho}")]
         public ActionResult<KhoHangResponse> GetKhoHangById(int maKho)
         {
@@ -61,11 +51,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// Tạo kho mới
-        /// </summary>
-        /// <param name="request">Thông tin kho mới</param>
-        /// <returns>Kết quả tạo kho</returns>
         [HttpPost("tao-kho")]
         public ActionResult CreateKho([FromBody] CreateKhoRequest request)
         {
@@ -91,11 +76,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// Cập nhật thông tin kho
-        /// </summary>
-        /// <param name="request">Thông tin cập nhật kho</param>
-        /// <returns>Kết quả cập nhật</returns>
         [HttpPut("cap-nhat-kho")]
         public ActionResult UpdateKho([FromBody] UpdateKhoRequest request)
         {
@@ -121,11 +101,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// Xóa kho
-        /// </summary>
-        /// <param name="maKho">Mã kho cần xóa</param>
-        /// <returns>Kết quả xóa kho</returns>
         [HttpDelete("xoa-kho/{maKho}")]
         public ActionResult DeleteKho(int maKho)
         {

@@ -16,11 +16,6 @@ namespace SieuThiService.Controllers
             _sieuThiRepository = sieuThiRepository;
         }
 
-        /// <summary>
-        /// API 1: Tạo đơn hàng (chỉ thông tin cơ bản, chưa có chi tiết)
-        /// </summary>
-        /// <param name="request">Thông tin đơn hàng cơ bản</param>
-        /// <returns>Thông tin đơn hàng đã tạo</returns>
         [HttpPost("tao-don-hang")]
         public ActionResult CreateDonHangOnly([FromBody] CreateDonHangRequest request)
         {
@@ -53,11 +48,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// API 2: Thêm chi tiết đơn hàng vào đơn hàng đã tạo
-        /// </summary>
-        /// <param name="request">Thông tin chi tiết đơn hàng</param>
-        /// <returns>Thông tin chi tiết đã thêm</returns>
         [HttpPost("them-chi-tiet")]
         public ActionResult AddChiTietDonHang([FromBody] CreateChiTietDonHangRequest request)
         {
@@ -83,12 +73,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// API 4: Nhận hàng từ đại lý (phải chọn kho)
-        /// </summary>
-        /// <param name="id">Mã đơn hàng cần nhận</param>
-        /// <param name="request">Thông tin nhận hàng bao gồm mã kho</param>
-        /// <returns>Kết quả nhận hàng</returns>
         [HttpPut("nhan-hang/{id}")]
         public ActionResult NhanHang(int id, [FromBody] NhanHangRequest request)
         {
@@ -119,12 +103,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// API 5: Sửa chi tiết đơn hàng
-        /// </summary>
-        /// <param name="request">Thông tin chi tiết đơn hàng cần cập nhật</param>
-        /// <returns>Kết quả cập nhật chi tiết đơn hàng</returns>
-        [HttpPut("sua-chi-tiet")]
         public ActionResult UpdateChiTietDonHang([FromBody] UpdateChiTietDonHangRequest request)
         {
             try
@@ -149,11 +127,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// API 6: Xóa chi tiết đơn hàng
-        /// </summary>
-        /// <param name="request">Thông tin chi tiết đơn hàng cần xóa</param>
-        /// <returns>Kết quả xóa chi tiết đơn hàng</returns>
         [HttpDelete("xoa-chi-tiet")]
         public ActionResult DeleteChiTietDonHang([FromBody] DeleteChiTietDonHangRequest request)
         {
@@ -179,12 +152,7 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// API 7: Hủy đơn hàng
-        /// </summary>
-        /// <param name="id">Mã đơn hàng cần hủy</param>
-        /// <returns>Kết quả hủy đơn hàng</returns>
-        [HttpPut("huy-don-hang/{id}")]
+        
         public ActionResult HuyDonHang(int id)
         {
             try
@@ -204,11 +172,7 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// Lấy thông tin đơn hàng theo ID
-        /// </summary>
-        /// <param name="id">Mã đơn hàng</param>
-        /// <returns>Thông tin đơn hàng</returns>
+        
         [HttpGet("{id}")]
         public ActionResult<DonHangSieuThiResponse> GetDonHangById(int id)
         {
@@ -229,11 +193,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// Lấy danh sách đơn hàng của một siêu thị
-        /// </summary>
-        /// <param name="maSieuThi">Mã siêu thị</param>
-        /// <returns>Danh sách đơn hàng</returns>
         [HttpGet("sieu-thi/{maSieuThi}")]
         public ActionResult<List<DonHangSieuThiResponse>> GetDonHangsBySieuThi(int maSieuThi)
         {

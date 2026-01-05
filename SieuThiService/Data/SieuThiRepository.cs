@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SieuThiService.Models.DTOs;
 using SieuThiService.Models.Entities;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace SieuThiService.Data
 {
@@ -17,11 +19,12 @@ namespace SieuThiService.Data
         {
             try
             {
-                // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = _context.SieuThis
-                    .FirstOrDefault(st => st.MaSieuThi == request.MaSieuThi);
+                // Kiểm tra siêu thị có tồn tại không bằng stored procedure
+                var sieuThiExistsParam = new SqlParameter("@MaSieuThi", request.MaSieuThi);
+                var existsResult = _context.Database.SqlQueryRaw<ExistsResult>(
+                    "EXEC sp_CheckSieuThiExists @MaSieuThi", sieuThiExistsParam).FirstOrDefault();
                 
-                if (sieuThi == null)
+                if (existsResult == null || existsResult.ExistsCount == 0)
                 {
                     return false;
                 }
@@ -64,11 +67,12 @@ namespace SieuThiService.Data
         {
             try
             {
-                // Kiểm tra đơn hàng có tồn tại không
-                var donHang = _context.DonHangs
-                    .FirstOrDefault(dh => dh.MaDonHang == request.MaDonHang);
+                // Kiểm tra đơn hàng có tồn tại không bằng stored procedure
+                var donHangParam = new SqlParameter("@MaDonHang", request.MaDonHang);
+                var donHangInfo = _context.Database.SqlQueryRaw<DonHangStatusInfo>(
+                    "EXEC sp_GetDonHangForStatusCheck @MaDonHang", donHangParam).FirstOrDefault();
                 
-                if (donHang == null)
+                if (donHangInfo == null)
                 {
                     return false;
                 }
@@ -88,17 +92,17 @@ namespace SieuThiService.Data
 
                 _context.ChiTietDonHangs.Add(chiTietDonHang);
 
-                // Cập nhật tổng số lượng và tổng giá trị của đơn hàng
-                var tongSoLuong = _context.ChiTietDonHangs
-                    .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .Sum(ct => ct.SoLuong);
-                
-                var tongGiaTri = _context.ChiTietDonHangs
-                    .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .Sum(ct => ct.ThanhTien ?? 0);
+                // Cập nhật tổng số lượng và tổng giá trị của đơn hàng bằng stored procedure
+                var totalsParam = new SqlParameter("@MaDonHang", request.MaDonHang);
+                var totals = _context.Database.SqlQueryRaw<DonHangTotals>(
+                    "EXEC sp_CalculateDonHangTotals @MaDonHang", totalsParam).FirstOrDefault();
 
-                donHang.TongSoLuong = tongSoLuong + request.SoLuong;
-                donHang.TongGiaTri = tongGiaTri + thanhTien;
+                var donHang = _context.DonHangs.Find(request.MaDonHang);
+                if (donHang != null && totals != null)
+                {
+                    donHang.TongSoLuong = totals.TongSoLuong + request.SoLuong;
+                    donHang.TongGiaTri = totals.TongGiaTri + thanhTien;
+                }
 
                 _context.SaveChanges();
 
@@ -115,44 +119,63 @@ namespace SieuThiService.Data
             using var transaction = _context.Database.BeginTransaction();
             try
             {
-                // Kiểm tra đơn hàng có tồn tại không
-                var donHang = _context.DonHangs
-                    .Include(dh => dh.DonHangSieuThi)
-                    .Include(dh => dh.ChiTietDonHangs)
-                    .FirstOrDefault(dh => dh.MaDonHang == maDonHang);
+                // Kiểm tra đơn hàng có tồn tại không bằng stored procedure
+                var donHangParam = new SqlParameter("@MaDonHang", maDonHang);
+                var donHangInfo = _context.Database.SqlQueryRaw<DonHangStatusInfo>(
+                    "EXEC sp_GetDonHangForStatusCheck @MaDonHang", donHangParam).FirstOrDefault();
                 
-                if (donHang == null)
+                if (donHangInfo == null)
                 {
                     return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể nhận không
-                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_nhan" || donHang.TrangThai == "da_giao")
+                if (donHangInfo.TrangThai == "da_huy" || donHangInfo.TrangThai == "da_nhan" || donHangInfo.TrangThai == "da_giao")
                 {
                     return false;
                 }
 
-                // Kiểm tra kho được chọn có tồn tại và thuộc về siêu thị không
-                var khoNhan = _context.Khos
-                    .FirstOrDefault(k => k.MaKho == request.MaKho && k.MaSieuThi == donHang.DonHangSieuThi!.MaSieuThi);
+                // Kiểm tra kho được chọn có tồn tại và thuộc về siêu thị không bằng stored procedure
+                var khoParams = new[]
+                {
+                    new SqlParameter("@MaKho", request.MaKho),
+                    new SqlParameter("@MaSieuThi", donHangInfo.MaSieuThi)
+                };
+                var khoValidResult = _context.Database.SqlQueryRaw<KhoValidResult>(
+                    "EXEC sp_CheckKhoValidForReceive @MaKho, @MaSieuThi", khoParams).FirstOrDefault();
 
-                if (khoNhan == null || khoNhan.TrangThai != "hoat_dong")
+                if (khoValidResult == null || khoValidResult.IsValid == 0)
                 {
                     return false;
                 }
+
+                // Lấy chi tiết đơn hàng bằng stored procedure
+                var chiTietParams = new SqlParameter("@MaDonHang", maDonHang);
+                var chiTietList = _context.Database.SqlQueryRaw<ChiTietForReceive>(
+                    "EXEC sp_GetChiTietDonHangForReceive @MaDonHang", chiTietParams).ToList();
 
                 // Cập nhật tồn kho cho từng chi tiết đơn hàng
-                foreach (var chiTiet in donHang.ChiTietDonHangs)
+                foreach (var chiTiet in chiTietList)
                 {
-                    // Kiểm tra xem lô hàng đã có trong kho chưa
-                    var tonKho = _context.TonKhos
-                        .FirstOrDefault(tk => tk.MaKho == request.MaKho && tk.MaLo == chiTiet.MaLo);
+                    // Kiểm tra xem lô hàng đã có trong kho chưa bằng stored procedure
+                    var tonKhoParams = new[]
+                    {
+                        new SqlParameter("@MaKho", request.MaKho),
+                        new SqlParameter("@MaLo", chiTiet.MaLo)
+                    };
+                    var tonKho = _context.Database.SqlQueryRaw<TonKhoInfo>(
+                        "EXEC sp_GetTonKhoByKhoAndLo @MaKho, @MaLo", tonKhoParams).FirstOrDefault();
 
                     if (tonKho != null)
                     {
                         // Nếu đã có, cộng thêm số lượng
-                        tonKho.SoLuong += chiTiet.SoLuong;
-                        tonKho.CapNhatCuoi = DateTime.Now;
+                        var existingTonKho = _context.TonKhos
+                            .FirstOrDefault(tk => tk.MaKho == request.MaKho && tk.MaLo == chiTiet.MaLo);
+                        if (existingTonKho != null)
+                        {
+                            existingTonKho.SoLuong += chiTiet.SoLuong;
+                            existingTonKho.CapNhatCuoi = DateTime.Now;
+                        }
                     }
                     else
                     {
@@ -169,14 +192,18 @@ namespace SieuThiService.Data
                 }
 
                 // Cập nhật trạng thái đơn hàng thành "da_nhan"
-                donHang.TrangThai = "da_nhan";
-                
-                // Cập nhật ghi chú nếu có
-                if (!string.IsNullOrEmpty(request.GhiChuNhan))
+                var donHang = _context.DonHangs.Find(maDonHang);
+                if (donHang != null)
                 {
-                    donHang.GhiChu = string.IsNullOrEmpty(donHang.GhiChu) 
-                        ? $"Ghi chú nhận hàng: {request.GhiChuNhan}"
-                        : $"{donHang.GhiChu}. Ghi chú nhận hàng: {request.GhiChuNhan}";
+                    donHang.TrangThai = "da_nhan";
+                    
+                    // Cập nhật ghi chú nếu có
+                    if (!string.IsNullOrEmpty(request.GhiChuNhan))
+                    {
+                        donHang.GhiChu = string.IsNullOrEmpty(donHang.GhiChu) 
+                            ? $"Ghi chú nhận hàng: {request.GhiChuNhan}"
+                            : $"{donHang.GhiChu}. Ghi chú nhận hàng: {request.GhiChuNhan}";
+                    }
                 }
 
                 _context.SaveChanges();
@@ -195,17 +222,32 @@ namespace SieuThiService.Data
         {
             try
             {
-                // Kiểm tra đơn hàng có tồn tại không
-                var donHang = _context.DonHangs
-                    .FirstOrDefault(dh => dh.MaDonHang == request.MaDonHang);
+                // Kiểm tra đơn hàng có tồn tại không bằng stored procedure
+                var donHangParam = new SqlParameter("@MaDonHang", request.MaDonHang);
+                var donHangInfo = _context.Database.SqlQueryRaw<DonHangStatusInfo>(
+                    "EXEC sp_GetDonHangForStatusCheck @MaDonHang", donHangParam).FirstOrDefault();
                 
-                if (donHang == null)
+                if (donHangInfo == null)
                 {
                     return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể sửa không
-                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_giao" || donHang.TrangThai == "dang_giao")
+                if (donHangInfo.TrangThai == "da_huy" || donHangInfo.TrangThai == "da_giao" || donHangInfo.TrangThai == "dang_giao")
+                {
+                    return false;
+                }
+
+                // Kiểm tra chi tiết đơn hàng có tồn tại không bằng stored procedure
+                var chiTietParams = new[]
+                {
+                    new SqlParameter("@MaDonHang", request.MaDonHang),
+                    new SqlParameter("@MaLo", request.MaLo)
+                };
+                var chiTietExistsResult = _context.Database.SqlQueryRaw<ExistsResult>(
+                    "EXEC sp_CheckChiTietDonHangExists @MaDonHang, @MaLo", chiTietParams).FirstOrDefault();
+
+                if (chiTietExistsResult == null || chiTietExistsResult.ExistsCount == 0)
                 {
                     return false;
                 }
@@ -214,27 +256,25 @@ namespace SieuThiService.Data
                 var chiTietDonHang = _context.ChiTietDonHangs
                     .FirstOrDefault(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo == request.MaLo);
 
-                if (chiTietDonHang == null)
+                if (chiTietDonHang != null)
                 {
-                    return false;
+                    // Cập nhật giá trị mới
+                    chiTietDonHang.SoLuong = request.SoLuong;
+                    chiTietDonHang.DonGia = request.DonGia;
+                    chiTietDonHang.ThanhTien = request.SoLuong * (request.DonGia ?? 0);
                 }
 
-                // Cập nhật giá trị mới
-                chiTietDonHang.SoLuong = request.SoLuong;
-                chiTietDonHang.DonGia = request.DonGia;
-                chiTietDonHang.ThanhTien = request.SoLuong * (request.DonGia ?? 0);
+                // Cập nhật tổng số lượng và tổng giá trị của đơn hàng bằng stored procedure
+                var totalsParam = new SqlParameter("@MaDonHang", request.MaDonHang);
+                var totals = _context.Database.SqlQueryRaw<DonHangTotals>(
+                    "EXEC sp_CalculateDonHangTotals @MaDonHang", totalsParam).FirstOrDefault();
 
-                // Cập nhật tổng số lượng và tổng giá trị của đơn hàng
-                var tongSoLuong = _context.ChiTietDonHangs
-                    .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .Sum(ct => ct.SoLuong);
-                
-                var tongGiaTri = _context.ChiTietDonHangs
-                    .Where(ct => ct.MaDonHang == request.MaDonHang)
-                    .Sum(ct => ct.ThanhTien ?? 0);
-
-                donHang.TongSoLuong = tongSoLuong;
-                donHang.TongGiaTri = tongGiaTri;
+                var donHang = _context.DonHangs.Find(request.MaDonHang);
+                if (donHang != null && totals != null)
+                {
+                    donHang.TongSoLuong = totals.TongSoLuong;
+                    donHang.TongGiaTri = totals.TongGiaTri;
+                }
 
                 _context.SaveChanges();
 
@@ -250,53 +290,70 @@ namespace SieuThiService.Data
         {
             try
             {
-                // Kiểm tra đơn hàng có tồn tại không
-                var donHang = _context.DonHangs
-                    .FirstOrDefault(dh => dh.MaDonHang == request.MaDonHang);
+                // Kiểm tra đơn hàng có tồn tại không bằng stored procedure
+                var donHangParam = new SqlParameter("@MaDonHang", request.MaDonHang);
+                var donHangInfo = _context.Database.SqlQueryRaw<DonHangStatusInfo>(
+                    "EXEC sp_GetDonHangForStatusCheck @MaDonHang", donHangParam).FirstOrDefault();
                 
-                if (donHang == null)
+                if (donHangInfo == null)
                 {
                     return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể xóa chi tiết không
-                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_giao" || donHang.TrangThai == "dang_giao")
+                if (donHangInfo.TrangThai == "da_huy" || donHangInfo.TrangThai == "da_giao" || donHangInfo.TrangThai == "dang_giao")
                 {
                     return false;
                 }
 
-                // Tìm chi tiết đơn hàng cần xóa
+                // Kiểm tra chi tiết đơn hàng có tồn tại không bằng stored procedure
+                var chiTietParams = new[]
+                {
+                    new SqlParameter("@MaDonHang", request.MaDonHang),
+                    new SqlParameter("@MaLo", request.MaLo)
+                };
+                var chiTietExistsResult = _context.Database.SqlQueryRaw<ExistsResult>(
+                    "EXEC sp_CheckChiTietDonHangExists @MaDonHang, @MaLo", chiTietParams).FirstOrDefault();
+
+                if (chiTietExistsResult == null || chiTietExistsResult.ExistsCount == 0)
+                {
+                    return false;
+                }
+
+                // Kiểm tra xem đơn hàng có ít nhất 2 chi tiết không (không được xóa hết) bằng stored procedure
+                var countParam = new SqlParameter("@MaDonHang", request.MaDonHang);
+                var countResult = _context.Database.SqlQueryRaw<ChiTietCountResult>(
+                    "EXEC sp_CountChiTietDonHang @MaDonHang", countParam).FirstOrDefault();
+
+                if (countResult == null || countResult.SoChiTiet <= 1)
+                {
+                    return false;
+                }
+
+                // Tìm và xóa chi tiết đơn hàng
                 var chiTietDonHang = _context.ChiTietDonHangs
                     .FirstOrDefault(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo == request.MaLo);
 
-                if (chiTietDonHang == null)
+                if (chiTietDonHang != null)
                 {
-                    return false;
+                    _context.ChiTietDonHangs.Remove(chiTietDonHang);
                 }
 
-                // Kiểm tra xem đơn hàng có ít nhất 2 chi tiết không (không được xóa hết)
-                var soChiTiet = _context.ChiTietDonHangs
-                    .Count(ct => ct.MaDonHang == request.MaDonHang);
-
-                if (soChiTiet <= 1)
+                // Cập nhật lại tổng số lượng và tổng giá trị của đơn hàng bằng stored procedure
+                var totalsParams = new[]
                 {
-                    return false;
+                    new SqlParameter("@MaDonHang", request.MaDonHang),
+                    new SqlParameter("@MaLo", request.MaLo)
+                };
+                var totals = _context.Database.SqlQueryRaw<DonHangTotals>(
+                    "EXEC sp_CalculateDonHangTotalsExcludeLo @MaDonHang, @MaLo", totalsParams).FirstOrDefault();
+
+                var donHang = _context.DonHangs.Find(request.MaDonHang);
+                if (donHang != null && totals != null)
+                {
+                    donHang.TongSoLuong = totals.TongSoLuong;
+                    donHang.TongGiaTri = totals.TongGiaTri;
                 }
-
-                // Xóa chi tiết đơn hàng
-                _context.ChiTietDonHangs.Remove(chiTietDonHang);
-
-                // Cập nhật lại tổng số lượng và tổng giá trị của đơn hàng
-                var tongSoLuong = _context.ChiTietDonHangs
-                    .Where(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo != request.MaLo)
-                    .Sum(ct => ct.SoLuong);
-                
-                var tongGiaTri = _context.ChiTietDonHangs
-                    .Where(ct => ct.MaDonHang == request.MaDonHang && ct.MaLo != request.MaLo)
-                    .Sum(ct => ct.ThanhTien ?? 0);
-
-                donHang.TongSoLuong = tongSoLuong;
-                donHang.TongGiaTri = tongGiaTri;
 
                 _context.SaveChanges();
 
@@ -312,23 +369,29 @@ namespace SieuThiService.Data
         {
             try
             {
-                // Kiểm tra đơn hàng có tồn tại không
-                var donHang = _context.DonHangs
-                    .FirstOrDefault(dh => dh.MaDonHang == maDonHang);
+                // Kiểm tra đơn hàng có tồn tại không bằng stored procedure
+                var donHangParam = new SqlParameter("@MaDonHang", maDonHang);
+                var donHangInfo = _context.Database.SqlQueryRaw<DonHangStatusInfo>(
+                    "EXEC sp_GetDonHangForStatusCheck @MaDonHang", donHangParam).FirstOrDefault();
                 
-                if (donHang == null)
+                if (donHangInfo == null)
                 {
                     return false;
                 }
 
                 // Kiểm tra trạng thái đơn hàng có thể hủy không
-                if (donHang.TrangThai == "da_huy" || donHang.TrangThai == "da_giao" || donHang.TrangThai == "dang_giao")
+                if (donHangInfo.TrangThai == "da_huy" || donHangInfo.TrangThai == "da_giao" || donHangInfo.TrangThai == "dang_giao")
                 {
                     return false;
                 }
 
                 // Cập nhật trạng thái đơn hàng thành "da_huy"
-                donHang.TrangThai = "da_huy";
+                var donHang = _context.DonHangs.Find(maDonHang);
+                if (donHang != null)
+                {
+                    donHang.TrangThai = "da_huy";
+                }
+                
                 _context.SaveChanges();
 
                 return true;
@@ -413,29 +476,33 @@ namespace SieuThiService.Data
         {
             try
             {
-                var donHang = _context.DonHangs
-                    .Include(dh => dh.DonHangSieuThi)
-                        .ThenInclude(dhst => dhst!.MaSieuThiNavigation)
-                    .Include(dh => dh.ChiTietDonHangs)
-                    .FirstOrDefault(dh => dh.MaDonHang == maDonHang);
+                // Lấy thông tin đơn hàng bằng stored procedure
+                var donHangParam = new SqlParameter("@MaDonHang", maDonHang);
+                var donHangInfo = _context.Database.SqlQueryRaw<DonHangInfo>(
+                    "EXEC sp_GetDonHangById @MaDonHang", donHangParam).FirstOrDefault();
 
-                if (donHang?.DonHangSieuThi == null)
+                if (donHangInfo == null)
                     return null;
+
+                // Lấy chi tiết đơn hàng bằng stored procedure
+                var chiTietParam = new SqlParameter("@MaDonHang", maDonHang);
+                var chiTietList = _context.Database.SqlQueryRaw<ChiTietDonHangInfo>(
+                    "EXEC sp_GetChiTietDonHangByMaDonHang @MaDonHang", chiTietParam).ToList();
 
                 return new DonHangSieuThiResponse
                 {
-                    MaDonHang = donHang.MaDonHang,
-                    MaSieuThi = donHang.DonHangSieuThi.MaSieuThi,
-                    MaDaiLy = donHang.DonHangSieuThi.MaDaiLy,
-                    LoaiDon = donHang.LoaiDon,
-                    NgayDat = donHang.NgayDat,
-                    NgayGiao = donHang.NgayGiao,
-                    TrangThai = donHang.TrangThai,
-                    TongSoLuong = donHang.TongSoLuong,
-                    TongGiaTri = donHang.TongGiaTri,
-                    GhiChu = donHang.GhiChu,
-                    TenSieuThi = donHang.DonHangSieuThi.MaSieuThiNavigation?.TenSieuThi,
-                    ChiTietDonHangs = donHang.ChiTietDonHangs.Select(ct => new ChiTietDonHangResponse
+                    MaDonHang = donHangInfo.MaDonHang,
+                    MaSieuThi = donHangInfo.MaSieuThi,
+                    MaDaiLy = donHangInfo.MaDaiLy,
+                    LoaiDon = donHangInfo.LoaiDon,
+                    NgayDat = donHangInfo.NgayDat,
+                    NgayGiao = donHangInfo.NgayGiao,
+                    TrangThai = donHangInfo.TrangThai,
+                    TongSoLuong = donHangInfo.TongSoLuong,
+                    TongGiaTri = donHangInfo.TongGiaTri,
+                    GhiChu = donHangInfo.GhiChu,
+                    TenSieuThi = donHangInfo.TenSieuThi,
+                    ChiTietDonHangs = chiTietList.Select(ct => new ChiTietDonHangResponse
                     {
                         MaLo = ct.MaLo,
                         SoLuong = ct.SoLuong,
@@ -454,35 +521,44 @@ namespace SieuThiService.Data
         {
             try
             {
-                var donHangs = _context.DonHangs
-                    .Include(dh => dh.DonHangSieuThi)
-                        .ThenInclude(dhst => dhst!.MaSieuThiNavigation)
-                    .Include(dh => dh.ChiTietDonHangs)
-                    .Where(dh => dh.DonHangSieuThi != null && dh.DonHangSieuThi.MaSieuThi == maSieuThi)
-                    .OrderByDescending(dh => dh.NgayDat)
-                    .ToList();
+                // Lấy danh sách đơn hàng bằng stored procedure
+                var sieuThiParam = new SqlParameter("@MaSieuThi", maSieuThi);
+                var donHangList = _context.Database.SqlQueryRaw<DonHangInfo>(
+                    "EXEC sp_GetDonHangsBySieuThi @MaSieuThi", sieuThiParam).ToList();
 
-                return donHangs.Select(donHang => new DonHangSieuThiResponse
+                var result = new List<DonHangSieuThiResponse>();
+
+                foreach (var donHangInfo in donHangList)
                 {
-                    MaDonHang = donHang.MaDonHang,
-                    MaSieuThi = donHang.DonHangSieuThi!.MaSieuThi,
-                    MaDaiLy = donHang.DonHangSieuThi.MaDaiLy,
-                    LoaiDon = donHang.LoaiDon,
-                    NgayDat = donHang.NgayDat,
-                    NgayGiao = donHang.NgayGiao,
-                    TrangThai = donHang.TrangThai,
-                    TongSoLuong = donHang.TongSoLuong,
-                    TongGiaTri = donHang.TongGiaTri,
-                    GhiChu = donHang.GhiChu,
-                    TenSieuThi = donHang.DonHangSieuThi.MaSieuThiNavigation?.TenSieuThi,
-                    ChiTietDonHangs = donHang.ChiTietDonHangs.Select(ct => new ChiTietDonHangResponse
+                    // Lấy chi tiết đơn hàng cho từng đơn hàng
+                    var chiTietParam = new SqlParameter("@MaDonHang", donHangInfo.MaDonHang);
+                    var chiTietList = _context.Database.SqlQueryRaw<ChiTietDonHangInfo>(
+                        "EXEC sp_GetChiTietDonHangByMaDonHang @MaDonHang", chiTietParam).ToList();
+
+                    result.Add(new DonHangSieuThiResponse
                     {
-                        MaLo = ct.MaLo,
-                        SoLuong = ct.SoLuong,
-                        DonGia = ct.DonGia,
-                        ThanhTien = ct.ThanhTien
-                    }).ToList()
-                }).ToList();
+                        MaDonHang = donHangInfo.MaDonHang,
+                        MaSieuThi = donHangInfo.MaSieuThi,
+                        MaDaiLy = donHangInfo.MaDaiLy,
+                        LoaiDon = donHangInfo.LoaiDon,
+                        NgayDat = donHangInfo.NgayDat,
+                        NgayGiao = donHangInfo.NgayGiao,
+                        TrangThai = donHangInfo.TrangThai,
+                        TongSoLuong = donHangInfo.TongSoLuong,
+                        TongGiaTri = donHangInfo.TongGiaTri,
+                        GhiChu = donHangInfo.GhiChu,
+                        TenSieuThi = donHangInfo.TenSieuThi,
+                        ChiTietDonHangs = chiTietList.Select(ct => new ChiTietDonHangResponse
+                        {
+                            MaLo = ct.MaLo,
+                            SoLuong = ct.SoLuong,
+                            DonGia = ct.DonGia,
+                            ThanhTien = ct.ThanhTien
+                        }).ToList()
+                    });
+                }
+
+                return result;
             }
             catch
             {
@@ -494,30 +570,20 @@ namespace SieuThiService.Data
         {
             try
             {
-                // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = _context.SieuThis
-                    .FirstOrDefault(st => st.MaSieuThi == maSieuThi);
+                // Kiểm tra siêu thị có tồn tại không bằng stored procedure
+                var sieuThiExistsParam = new SqlParameter("@MaSieuThi", maSieuThi);
+                var existsResult = _context.Database.SqlQueryRaw<ExistsResult>(
+                    "EXEC sp_CheckSieuThiExists @MaSieuThi", sieuThiExistsParam).FirstOrDefault();
                 
-                if (sieuThi == null)
+                if (existsResult == null || existsResult.ExistsCount == 0)
                 {
                     return new List<KhoSimpleInfo>();
                 }
 
-                // Lấy danh sách kho của siêu thị (chỉ thông tin cơ bản)
-                var danhSachKho = _context.Khos
-                    .Where(k => k.MaSieuThi == maSieuThi)
-                    .Select(k => new KhoSimpleInfo
-                    {
-                        MaKho = k.MaKho,
-                        TenKho = k.TenKho,
-                        LoaiKho = k.LoaiKho,
-                        DiaChi = k.DiaChi,
-                        TrangThai = k.TrangThai,
-                        NgayTao = k.NgayTao,
-                        TongSoLoHang = k.TonKhos.Count(),
-                        TongSoLuong = k.TonKhos.Sum(tk => tk.SoLuong)
-                    })
-                    .ToList();
+                // Lấy danh sách kho của siêu thị bằng stored procedure
+                var khoParam = new SqlParameter("@MaSieuThi", maSieuThi);
+                var danhSachKho = _context.Database.SqlQueryRaw<KhoSimpleInfo>(
+                    "EXEC sp_GetDanhSachKhoBySieuThi @MaSieuThi", khoParam).ToList();
 
                 return danhSachKho;
             }
@@ -531,37 +597,41 @@ namespace SieuThiService.Data
         {
             try
             {
-                var kho = _context.Khos
-                    .Include(k => k.TonKhos)
-                    .Include(k => k.MaSieuThiNavigation)
-                    .FirstOrDefault(k => k.MaKho == maKho);
+                // Lấy thông tin kho bằng stored procedure
+                var khoParam = new SqlParameter("@MaKho", maKho);
+                var khoInfo = _context.Database.SqlQueryRaw<KhoInfo>(
+                    "EXEC sp_GetKhoHangById @MaKho", khoParam).FirstOrDefault();
 
-                if (kho == null)
+                if (khoInfo == null)
                 {
                     return null;
                 }
 
-                var tonKhoResponses = kho.TonKhos.Select(tk => new TonKhoResponse
+                // Lấy tồn kho bằng stored procedure (sử dụng cùng stored procedure)
+                var tonKhoList = _context.Database.SqlQueryRaw<TonKhoDetail>(
+                    "EXEC sp_GetKhoHangById @MaKho", khoParam).ToList();
+
+                var tonKhoResponses = tonKhoList.Select(tk => new TonKhoResponse
                 {
                     MaLo = tk.MaLo,
                     SoLuong = tk.SoLuong,
                     CapNhatCuoi = tk.CapNhatCuoi,
                     TenSanPham = $"Sản phẩm lô {tk.MaLo}", // Tạm thời
                     DonViTinh = "kg", // Tạm thời
-                    TrangThaiLo = tk.SoLuong > 0 ? "con_hang" : "het_hang"
+                    TrangThaiLo = tk.TrangThaiLo
                 }).ToList();
 
                 return new KhoHangResponse
                 {
-                    MaKho = kho.MaKho,
-                    TenKho = kho.TenKho,
-                    LoaiKho = kho.LoaiKho,
-                    DiaChi = kho.DiaChi,
-                    TrangThai = kho.TrangThai,
-                    NgayTao = kho.NgayTao,
+                    MaKho = khoInfo.MaKho,
+                    TenKho = khoInfo.TenKho,
+                    LoaiKho = khoInfo.LoaiKho,
+                    DiaChi = khoInfo.DiaChi,
+                    TrangThai = khoInfo.TrangThai,
+                    NgayTao = khoInfo.NgayTao,
                     TonKhos = tonKhoResponses,
-                    TongSoLoHang = kho.TonKhos.Count,
-                    TongSoLuong = kho.TonKhos.Sum(tk => tk.SoLuong)
+                    TongSoLoHang = tonKhoResponses.Count,
+                    TongSoLuong = tonKhoResponses.Sum(tk => tk.SoLuong)
                 };
             }
             catch
@@ -574,20 +644,26 @@ namespace SieuThiService.Data
         {
             try
             {
-                // Kiểm tra siêu thị có tồn tại không
-                var sieuThi = _context.SieuThis
-                    .FirstOrDefault(st => st.MaSieuThi == request.MaSieuThi);
+                // Kiểm tra siêu thị có tồn tại không bằng stored procedure
+                var sieuThiExistsParam = new SqlParameter("@MaSieuThi", request.MaSieuThi);
+                var existsResult = _context.Database.SqlQueryRaw<ExistsResult>(
+                    "EXEC sp_CheckSieuThiExists @MaSieuThi", sieuThiExistsParam).FirstOrDefault();
                 
-                if (sieuThi == null)
+                if (existsResult == null || existsResult.ExistsCount == 0)
                 {
                     return false;
                 }
 
-                // Kiểm tra tên kho đã tồn tại trong siêu thị chưa
-                var existingKho = _context.Khos
-                    .FirstOrDefault(k => k.MaSieuThi == request.MaSieuThi && k.TenKho == request.TenKho);
+                // Kiểm tra tên kho đã tồn tại trong siêu thị chưa bằng stored procedure
+                var khoNameParams = new[]
+                {
+                    new SqlParameter("@MaSieuThi", request.MaSieuThi),
+                    new SqlParameter("@TenKho", request.TenKho)
+                };
+                var nameExistsResult = _context.Database.SqlQueryRaw<ExistsResult>(
+                    "EXEC sp_CheckKhoNameExists @MaSieuThi, @TenKho", khoNameParams).FirstOrDefault();
 
-                if (existingKho != null)
+                if (nameExistsResult != null && nameExistsResult.ExistsCount > 0)
                 {
                     return false;
                 }
@@ -627,13 +703,19 @@ namespace SieuThiService.Data
                     return false;
                 }
 
-                // Kiểm tra tên kho mới có trùng với kho khác trong cùng siêu thị không
+                // Kiểm tra tên kho mới có trùng với kho khác trong cùng siêu thị không bằng stored procedure
                 if (kho.TenKho != request.TenKho)
                 {
-                    var existingKho = _context.Khos
-                        .FirstOrDefault(k => k.MaSieuThi == kho.MaSieuThi && k.TenKho == request.TenKho && k.MaKho != request.MaKho);
+                    var khoNameParams = new[]
+                    {
+                        new SqlParameter("@MaSieuThi", kho.MaSieuThi),
+                        new SqlParameter("@TenKho", request.TenKho),
+                        new SqlParameter("@MaKho", request.MaKho)
+                    };
+                    var nameExistsResult = _context.Database.SqlQueryRaw<ExistsResult>(
+                        "EXEC sp_CheckKhoNameExists @MaSieuThi, @TenKho, @MaKho", khoNameParams).FirstOrDefault();
 
-                    if (existingKho != null)
+                    if (nameExistsResult != null && nameExistsResult.ExistsCount > 0)
                     {
                         return false;
                     }
