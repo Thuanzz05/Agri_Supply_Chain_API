@@ -21,14 +21,29 @@ namespace NongDanService.Data
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("sp_DonHangDaiLy_GetAll", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
+                using var cmd = new SqlCommand(@"
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
+                           n.HoTen AS TenNongDan, dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    ORDER BY d.NgayDat DESC", conn);
 
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
                     list.Add(MapToDTO(reader));
+                }
+                reader.Close();
+
+                // Load chi tiết cho từng đơn hàng
+                foreach (var donHang in list)
+                {
+                    donHang.ChiTietDonHang = GetChiTietByDonHang(donHang.MaDonHang, conn);
                 }
             }
             catch (SqlException ex)
@@ -44,13 +59,29 @@ namespace NongDanService.Data
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("sp_DonHangDaiLy_GetById", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = id;
+                using var cmd = new SqlCommand(@"
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
+                           n.HoTen AS TenNongDan, dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    WHERE dd.MaDonHang = @id", conn);
 
+                cmd.Parameters.Add("@id", SqlDbType.Int).Value = id;
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
-                return reader.Read() ? MapToDTO(reader) : null;
+                
+                if (!reader.Read()) return null;
+                
+                var donHang = MapToDTO(reader);
+                reader.Close();
+                
+                // Load chi tiết
+                donHang.ChiTietDonHang = GetChiTietByDonHang(id, conn);
+                return donHang;
             }
             catch (SqlException ex)
             {
@@ -65,15 +96,30 @@ namespace NongDanService.Data
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("sp_DonHangDaiLy_GetByNongDan", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("@MaNongDan", SqlDbType.Int).Value = maNongDan;
+                using var cmd = new SqlCommand(@"
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
+                           n.HoTen AS TenNongDan, dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    WHERE dd.MaNongDan = @maNongDan
+                    ORDER BY d.NgayDat DESC", conn);
 
+                cmd.Parameters.Add("@maNongDan", SqlDbType.Int).Value = maNongDan;
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
                     list.Add(MapToDTO(reader));
+                }
+                reader.Close();
+
+                foreach (var donHang in list)
+                {
+                    donHang.ChiTietDonHang = GetChiTietByDonHang(donHang.MaDonHang, conn);
                 }
             }
             catch (SqlException ex)
@@ -90,15 +136,30 @@ namespace NongDanService.Data
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("sp_DonHangDaiLy_GetByDaiLy", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("@MaDaiLy", SqlDbType.Int).Value = maDaiLy;
+                using var cmd = new SqlCommand(@"
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
+                           n.HoTen AS TenNongDan, dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    WHERE dd.MaDaiLy = @maDaiLy
+                    ORDER BY d.NgayDat DESC", conn);
 
+                cmd.Parameters.Add("@maDaiLy", SqlDbType.Int).Value = maDaiLy;
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
                     list.Add(MapToDTO(reader));
+                }
+                reader.Close();
+
+                foreach (var donHang in list)
+                {
+                    donHang.ChiTietDonHang = GetChiTietByDonHang(donHang.MaDonHang, conn);
                 }
             }
             catch (SqlException ex)
@@ -117,10 +178,9 @@ namespace NongDanService.Data
 
             try
             {
-                // Tính tổng số lượng và tổng giá trị từ chi tiết đơn hàng
+                // Tính tổng từ chi tiết
                 decimal tongSoLuong = 0;
                 decimal tongGiaTri = 0;
-                
                 if (dto.ChiTietDonHang != null && dto.ChiTietDonHang.Count > 0)
                 {
                     tongSoLuong = dto.ChiTietDonHang.Sum(x => x.SoLuong);
@@ -151,26 +211,26 @@ namespace NongDanService.Data
                 cmdDaiLy.Parameters.Add("@MaNongDan", SqlDbType.Int).Value = dto.MaNongDan;
                 cmdDaiLy.ExecuteNonQuery();
 
-                // 3. Tạo ChiTietDonHang (nếu có)
+                // 3. Tạo ChiTietDonHang
                 if (dto.ChiTietDonHang != null && dto.ChiTietDonHang.Count > 0)
                 {
-                    foreach (var chiTiet in dto.ChiTietDonHang)
+                    foreach (var ct in dto.ChiTietDonHang)
                     {
-                        using var cmdChiTiet = new SqlCommand(@"
+                        using var cmdCT = new SqlCommand(@"
                             INSERT INTO ChiTietDonHang (MaDonHang, MaLo, SoLuong, DonGia, ThanhTien)
                             VALUES (@MaDonHang, @MaLo, @SoLuong, @DonGia, @ThanhTien)", conn, transaction);
 
-                        cmdChiTiet.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
-                        cmdChiTiet.Parameters.Add("@MaLo", SqlDbType.Int).Value = chiTiet.MaLo;
-                        cmdChiTiet.Parameters.Add("@SoLuong", SqlDbType.Decimal).Value = chiTiet.SoLuong;
-                        cmdChiTiet.Parameters.Add("@DonGia", SqlDbType.Decimal).Value = chiTiet.DonGia;
-                        cmdChiTiet.Parameters.Add("@ThanhTien", SqlDbType.Decimal).Value = chiTiet.SoLuong * chiTiet.DonGia;
-                        cmdChiTiet.ExecuteNonQuery();
+                        cmdCT.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+                        cmdCT.Parameters.Add("@MaLo", SqlDbType.Int).Value = ct.MaLo;
+                        cmdCT.Parameters.Add("@SoLuong", SqlDbType.Decimal).Value = ct.SoLuong;
+                        cmdCT.Parameters.Add("@DonGia", SqlDbType.Decimal).Value = ct.DonGia;
+                        cmdCT.Parameters.Add("@ThanhTien", SqlDbType.Decimal).Value = ct.SoLuong * ct.DonGia;
+                        cmdCT.ExecuteNonQuery();
                     }
                 }
 
                 transaction.Commit();
-                _logger.LogInformation("Created order with ID {Id} with {Count} items", maDonHang, dto.ChiTietDonHang?.Count ?? 0);
+                _logger.LogInformation("Created order {Id} with {Count} items", maDonHang, dto.ChiTietDonHang?.Count ?? 0);
                 return maDonHang;
             }
             catch (Exception ex)
@@ -240,19 +300,14 @@ namespace NongDanService.Data
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("sp_DonHangDaiLy_UpdateTrangThai", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
+                using var cmd = new SqlCommand(
+                    "UPDATE DonHang SET TrangThai = @TrangThai WHERE MaDonHang = @Id", conn);
 
-                cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = id;
+                cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
                 cmd.Parameters.Add("@TrangThai", SqlDbType.NVarChar, 30).Value = trangThai;
 
                 conn.Open();
-                using var reader = cmd.ExecuteReader();
-                if (reader.Read())
-                {
-                    return reader.GetInt32(0) > 0;
-                }
-                return false;
+                return cmd.ExecuteNonQuery() > 0;
             }
             catch (SqlException ex)
             {
@@ -269,7 +324,7 @@ namespace NongDanService.Data
 
             try
             {
-                // Xóa ChiTietDonHang trước
+                // Xóa ChiTietDonHang
                 using var cmd0 = new SqlCommand("DELETE FROM ChiTietDonHang WHERE MaDonHang = @id", conn, transaction);
                 cmd0.Parameters.Add("@id", SqlDbType.Int).Value = id;
                 cmd0.ExecuteNonQuery();
@@ -293,6 +348,155 @@ namespace NongDanService.Data
                 _logger.LogError(ex, "Error deleting order {Id}", id);
                 throw;
             }
+        }
+
+        // ========== Chi tiết đơn hàng ==========
+
+        public List<ChiTietDonHangDTO> GetChiTietDonHang(int maDonHang)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            return GetChiTietByDonHang(maDonHang, conn);
+        }
+
+        public bool ThemChiTiet(int maDonHang, ChiTietDonHangItemDTO item)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    INSERT INTO ChiTietDonHang (MaDonHang, MaLo, SoLuong, DonGia, ThanhTien)
+                    VALUES (@MaDonHang, @MaLo, @SoLuong, @DonGia, @ThanhTien)", conn, transaction);
+
+                cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+                cmd.Parameters.Add("@MaLo", SqlDbType.Int).Value = item.MaLo;
+                cmd.Parameters.Add("@SoLuong", SqlDbType.Decimal).Value = item.SoLuong;
+                cmd.Parameters.Add("@DonGia", SqlDbType.Decimal).Value = item.DonGia;
+                cmd.Parameters.Add("@ThanhTien", SqlDbType.Decimal).Value = item.SoLuong * item.DonGia;
+                cmd.ExecuteNonQuery();
+
+                // Cập nhật tổng
+                CapNhatTongDonHang(maDonHang, conn, transaction);
+
+                transaction.Commit();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                _logger.LogError(ex, "Error adding order detail");
+                throw;
+            }
+        }
+
+        public bool CapNhatChiTiet(int maDonHang, int maLo, ChiTietDonHangItemDTO item)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    UPDATE ChiTietDonHang 
+                    SET SoLuong = @SoLuong, DonGia = @DonGia, ThanhTien = @ThanhTien
+                    WHERE MaDonHang = @MaDonHang AND MaLo = @MaLo", conn, transaction);
+
+                cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+                cmd.Parameters.Add("@MaLo", SqlDbType.Int).Value = maLo;
+                cmd.Parameters.Add("@SoLuong", SqlDbType.Decimal).Value = item.SoLuong;
+                cmd.Parameters.Add("@DonGia", SqlDbType.Decimal).Value = item.DonGia;
+                cmd.Parameters.Add("@ThanhTien", SqlDbType.Decimal).Value = item.SoLuong * item.DonGia;
+
+                var result = cmd.ExecuteNonQuery() > 0;
+
+                CapNhatTongDonHang(maDonHang, conn, transaction);
+
+                transaction.Commit();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                _logger.LogError(ex, "Error updating order detail");
+                throw;
+            }
+        }
+
+        public bool XoaChiTiet(int maDonHang, int maLo)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
+            try
+            {
+                using var cmd = new SqlCommand(
+                    "DELETE FROM ChiTietDonHang WHERE MaDonHang = @MaDonHang AND MaLo = @MaLo", conn, transaction);
+                cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+                cmd.Parameters.Add("@MaLo", SqlDbType.Int).Value = maLo;
+
+                var result = cmd.ExecuteNonQuery() > 0;
+
+                CapNhatTongDonHang(maDonHang, conn, transaction);
+
+                transaction.Commit();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                _logger.LogError(ex, "Error deleting order detail");
+                throw;
+            }
+        }
+
+        // ========== Private methods ==========
+
+        private List<ChiTietDonHangDTO> GetChiTietByDonHang(int maDonHang, SqlConnection conn)
+        {
+            var list = new List<ChiTietDonHangDTO>();
+            using var cmd = new SqlCommand(@"
+                SELECT ct.MaDonHang, ct.MaLo, ct.SoLuong, ct.DonGia, ct.ThanhTien,
+                       sp.TenSanPham, lo.MaQR, tt.TenTrangTrai
+                FROM ChiTietDonHang ct
+                INNER JOIN LoNongSan lo ON ct.MaLo = lo.MaLo
+                INNER JOIN SanPham sp ON lo.MaSanPham = sp.MaSanPham
+                INNER JOIN TrangTrai tt ON lo.MaTrangTrai = tt.MaTrangTrai
+                WHERE ct.MaDonHang = @MaDonHang", conn);
+
+            cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new ChiTietDonHangDTO
+                {
+                    MaDonHang = reader.GetInt32(reader.GetOrdinal("MaDonHang")),
+                    MaLo = reader.GetInt32(reader.GetOrdinal("MaLo")),
+                    SoLuong = reader.GetDecimal(reader.GetOrdinal("SoLuong")),
+                    DonGia = reader.GetDecimal(reader.GetOrdinal("DonGia")),
+                    ThanhTien = reader.GetDecimal(reader.GetOrdinal("ThanhTien")),
+                    TenSanPham = reader.IsDBNull(reader.GetOrdinal("TenSanPham")) ? null : reader.GetString(reader.GetOrdinal("TenSanPham")),
+                    MaQR = reader.IsDBNull(reader.GetOrdinal("MaQR")) ? null : reader.GetString(reader.GetOrdinal("MaQR")),
+                    TenTrangTrai = reader.IsDBNull(reader.GetOrdinal("TenTrangTrai")) ? null : reader.GetString(reader.GetOrdinal("TenTrangTrai"))
+                });
+            }
+            return list;
+        }
+
+        private void CapNhatTongDonHang(int maDonHang, SqlConnection conn, SqlTransaction transaction)
+        {
+            using var cmd = new SqlCommand(@"
+                UPDATE DonHang 
+                SET TongSoLuong = ISNULL((SELECT SUM(SoLuong) FROM ChiTietDonHang WHERE MaDonHang = @MaDonHang), 0),
+                    TongGiaTri = ISNULL((SELECT SUM(ThanhTien) FROM ChiTietDonHang WHERE MaDonHang = @MaDonHang), 0)
+                WHERE MaDonHang = @MaDonHang", conn, transaction);
+            cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+            cmd.ExecuteNonQuery();
         }
 
         private static DonHangDaiLyDTO MapToDTO(SqlDataReader reader)
