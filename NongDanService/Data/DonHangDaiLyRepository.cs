@@ -111,32 +111,71 @@ namespace NongDanService.Data
 
         public int Create(DonHangDaiLyCreateDTO dto)
         {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
             try
             {
-                using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("sp_DonHangDaiLy_Create", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-
-                cmd.Parameters.Add("@MaDaiLy", SqlDbType.Int).Value = dto.MaDaiLy;
-                cmd.Parameters.Add("@MaNongDan", SqlDbType.Int).Value = dto.MaNongDan;
-                cmd.Parameters.Add("@LoaiDon", SqlDbType.NVarChar, 50).Value = (object?)dto.LoaiDon ?? "dai_ly";
-                cmd.Parameters.Add("@NgayGiao", SqlDbType.DateTime).Value = (object?)dto.NgayGiao ?? DBNull.Value;
-                cmd.Parameters.Add("@TongSoLuong", SqlDbType.Decimal).Value = (object?)dto.TongSoLuong ?? DBNull.Value;
-                cmd.Parameters.Add("@TongGiaTri", SqlDbType.Decimal).Value = (object?)dto.TongGiaTri ?? DBNull.Value;
-                cmd.Parameters.Add("@GhiChu", SqlDbType.NVarChar, 255).Value = (object?)dto.GhiChu ?? DBNull.Value;
+                // Tính tổng số lượng và tổng giá trị từ chi tiết đơn hàng
+                decimal tongSoLuong = 0;
+                decimal tongGiaTri = 0;
                 
-                var outputParam = cmd.Parameters.Add("@MaDonHang", SqlDbType.Int);
-                outputParam.Direction = ParameterDirection.Output;
+                if (dto.ChiTietDonHang != null && dto.ChiTietDonHang.Count > 0)
+                {
+                    tongSoLuong = dto.ChiTietDonHang.Sum(x => x.SoLuong);
+                    tongGiaTri = dto.ChiTietDonHang.Sum(x => x.SoLuong * x.DonGia);
+                }
 
-                conn.Open();
-                cmd.ExecuteNonQuery();
-                
-                var maDonHang = (int)outputParam.Value;
-                _logger.LogInformation("Created order with ID {Id}", maDonHang);
+                // 1. Tạo DonHang
+                using var cmdDonHang = new SqlCommand(@"
+                    INSERT INTO DonHang (LoaiDon, NgayDat, NgayGiao, TrangThai, TongSoLuong, TongGiaTri, GhiChu)
+                    OUTPUT INSERTED.MaDonHang
+                    VALUES (@LoaiDon, GETDATE(), @NgayGiao, N'cho_xu_ly', @TongSoLuong, @TongGiaTri, @GhiChu)", conn, transaction);
+
+                cmdDonHang.Parameters.Add("@LoaiDon", SqlDbType.NVarChar, 50).Value = (object?)dto.LoaiDon ?? "dai_ly";
+                cmdDonHang.Parameters.Add("@NgayGiao", SqlDbType.DateTime).Value = (object?)dto.NgayGiao ?? DBNull.Value;
+                cmdDonHang.Parameters.Add("@TongSoLuong", SqlDbType.Decimal).Value = tongSoLuong;
+                cmdDonHang.Parameters.Add("@TongGiaTri", SqlDbType.Decimal).Value = tongGiaTri;
+                cmdDonHang.Parameters.Add("@GhiChu", SqlDbType.NVarChar, 255).Value = (object?)dto.GhiChu ?? DBNull.Value;
+
+                var maDonHang = (int)cmdDonHang.ExecuteScalar()!;
+
+                // 2. Tạo DonHangDaiLy
+                using var cmdDaiLy = new SqlCommand(@"
+                    INSERT INTO DonHangDaiLy (MaDonHang, MaDaiLy, MaNongDan)
+                    VALUES (@MaDonHang, @MaDaiLy, @MaNongDan)", conn, transaction);
+
+                cmdDaiLy.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+                cmdDaiLy.Parameters.Add("@MaDaiLy", SqlDbType.Int).Value = dto.MaDaiLy;
+                cmdDaiLy.Parameters.Add("@MaNongDan", SqlDbType.Int).Value = dto.MaNongDan;
+                cmdDaiLy.ExecuteNonQuery();
+
+                // 3. Tạo ChiTietDonHang (nếu có)
+                if (dto.ChiTietDonHang != null && dto.ChiTietDonHang.Count > 0)
+                {
+                    foreach (var chiTiet in dto.ChiTietDonHang)
+                    {
+                        using var cmdChiTiet = new SqlCommand(@"
+                            INSERT INTO ChiTietDonHang (MaDonHang, MaLo, SoLuong, DonGia, ThanhTien)
+                            VALUES (@MaDonHang, @MaLo, @SoLuong, @DonGia, @ThanhTien)", conn, transaction);
+
+                        cmdChiTiet.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+                        cmdChiTiet.Parameters.Add("@MaLo", SqlDbType.Int).Value = chiTiet.MaLo;
+                        cmdChiTiet.Parameters.Add("@SoLuong", SqlDbType.Decimal).Value = chiTiet.SoLuong;
+                        cmdChiTiet.Parameters.Add("@DonGia", SqlDbType.Decimal).Value = chiTiet.DonGia;
+                        cmdChiTiet.Parameters.Add("@ThanhTien", SqlDbType.Decimal).Value = chiTiet.SoLuong * chiTiet.DonGia;
+                        cmdChiTiet.ExecuteNonQuery();
+                    }
+                }
+
+                transaction.Commit();
+                _logger.LogInformation("Created order with ID {Id} with {Count} items", maDonHang, dto.ChiTietDonHang?.Count ?? 0);
                 return maDonHang;
             }
             catch (Exception ex)
             {
+                transaction.Rollback();
                 _logger.LogError(ex, "Error creating order");
                 throw;
             }
@@ -224,23 +263,33 @@ namespace NongDanService.Data
 
         public bool Delete(int id)
         {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
             try
             {
-                using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("sp_DonHangDaiLy_Delete", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = id;
+                // Xóa ChiTietDonHang trước
+                using var cmd0 = new SqlCommand("DELETE FROM ChiTietDonHang WHERE MaDonHang = @id", conn, transaction);
+                cmd0.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                cmd0.ExecuteNonQuery();
 
-                conn.Open();
-                using var reader = cmd.ExecuteReader();
-                if (reader.Read())
-                {
-                    return reader.GetInt32(0) > 0;
-                }
-                return false;
+                // Xóa DonHangDaiLy
+                using var cmd1 = new SqlCommand("DELETE FROM DonHangDaiLy WHERE MaDonHang = @id", conn, transaction);
+                cmd1.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                cmd1.ExecuteNonQuery();
+
+                // Xóa DonHang
+                using var cmd2 = new SqlCommand("DELETE FROM DonHang WHERE MaDonHang = @id", conn, transaction);
+                cmd2.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                var result = cmd2.ExecuteNonQuery() > 0;
+
+                transaction.Commit();
+                return result;
             }
             catch (Exception ex)
             {
+                transaction.Rollback();
                 _logger.LogError(ex, "Error deleting order {Id}", id);
                 throw;
             }
