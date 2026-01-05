@@ -146,11 +146,6 @@ namespace SieuThiService.Controllers
             }
         }
 
-        /// <summary>
-        /// Xóa tồn kho (xóa sản phẩm khỏi kho)
-        /// </summary>
-        /// <param name="request">Thông tin xóa tồn kho</param>
-        /// <returns>Kết quả xóa</returns>
         [HttpDelete("xoa-ton-kho")]
         public ActionResult DeleteTonKho([FromBody] DeleteTonKhoRequest request)
         {

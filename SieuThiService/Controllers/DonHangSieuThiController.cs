@@ -205,49 +205,6 @@ namespace SieuThiService.Controllers
         }
 
         /// <summary>
-        /// Tạo đơn hàng mới cho siêu thị (API gộp - giữ lại để tương thích)
-        /// </summary>
-        /// <param name="request">Thông tin đơn hàng cần tạo</param>
-        /// <returns>Thông tin đơn hàng đã tạo</returns>
-        [HttpPost]
-        public ActionResult CreateDonHang([FromBody] CreateDonHangSieuThiRequest request)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                // Kiểm tra danh sách chi tiết đơn hàng không rỗng
-                if (!request.ChiTietDonHangs.Any())
-                {
-                    return BadRequest("Đơn hàng phải có ít nhất một sản phẩm");
-                }
-
-                // Kiểm tra siêu thị có tồn tại không
-                var sieuThiExists = _sieuThiRepository.GetSieuThiById(request.MaSieuThi);
-                if (!sieuThiExists)
-                {
-                    return NotFound($"Không tìm thấy siêu thị với mã {request.MaSieuThi}");
-                }
-
-                var result = _sieuThiRepository.CreateDonHang(request);
-                
-                if (!result)
-                {
-                    return BadRequest("Không thể tạo đơn hàng");
-                }
-
-                return Ok("Tạo đơn hàng thành công");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Lỗi server: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Lấy thông tin đơn hàng theo ID
         /// </summary>
         /// <param name="id">Mã đơn hàng</param>
