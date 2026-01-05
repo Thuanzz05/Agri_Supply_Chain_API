@@ -18,37 +18,33 @@ namespace NongDanService.Data
         public List<DonHangDaiLyDTO> GetAll()
         {
             var list = new List<DonHangDaiLyDTO>();
-
             try
             {
                 using var conn = new SqlConnection(_connectionString);
                 using var cmd = new SqlCommand(@"
-                    SELECT d.MaDonHang, d.MaNongDan, d.MaDaiLy, d.MaLo, d.SoLuong, d.DonGia, d.TongTien,
-                           d.TrangThai, d.NgayTao, d.GhiChu,
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
                            n.HoTen AS TenNongDan,
-                           l.MaQR, s.TenSanPham
-                    FROM DonHangDaiLy d
-                    LEFT JOIN NongDan n ON d.MaNongDan = n.MaNongDan
-                    LEFT JOIN LoNongSan l ON d.MaLo = l.MaLo
-                    LEFT JOIN SanPham s ON l.MaSanPham = s.MaSanPham
-                    ORDER BY d.NgayTao DESC", conn);
+                           dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    ORDER BY d.NgayDat DESC", conn);
 
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
-
                 while (reader.Read())
                 {
                     list.Add(MapToDTO(reader));
                 }
-
-                _logger.LogInformation("Retrieved {Count} orders from database", list.Count);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "SQL error occurred while getting all orders");
-                throw new Exception("Lỗi truy vấn cơ sở dữ liệu", ex);
+                _logger.LogError(ex, "SQL error getting all orders");
+                throw;
             }
-
             return list;
         }
 
@@ -58,153 +54,140 @@ namespace NongDanService.Data
             {
                 using var conn = new SqlConnection(_connectionString);
                 using var cmd = new SqlCommand(@"
-                    SELECT d.MaDonHang, d.MaNongDan, d.MaDaiLy, d.MaLo, d.SoLuong, d.DonGia, d.TongTien,
-                           d.TrangThai, d.NgayTao, d.GhiChu,
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
                            n.HoTen AS TenNongDan,
-                           l.MaQR, s.TenSanPham
-                    FROM DonHangDaiLy d
-                    LEFT JOIN NongDan n ON d.MaNongDan = n.MaNongDan
-                    LEFT JOIN LoNongSan l ON d.MaLo = l.MaLo
-                    LEFT JOIN SanPham s ON l.MaSanPham = s.MaSanPham
-                    WHERE d.MaDonHang = @id", conn);
+                           dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    WHERE dd.MaDonHang = @id", conn);
 
                 cmd.Parameters.Add("@id", SqlDbType.Int).Value = id;
-
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
-
-                if (!reader.Read())
-                {
-                    _logger.LogWarning("Order with ID {OrderId} not found", id);
-                    return null;
-                }
-
-                return MapToDTO(reader);
+                return reader.Read() ? MapToDTO(reader) : null;
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "SQL error occurred while getting order with ID {OrderId}", id);
-                throw new Exception("Lỗi truy vấn cơ sở dữ liệu", ex);
+                _logger.LogError(ex, "SQL error getting order by ID {Id}", id);
+                throw;
             }
         }
 
         public List<DonHangDaiLyDTO> GetByNongDanId(int maNongDan)
         {
             var list = new List<DonHangDaiLyDTO>();
-
             try
             {
                 using var conn = new SqlConnection(_connectionString);
                 using var cmd = new SqlCommand(@"
-                    SELECT d.MaDonHang, d.MaNongDan, d.MaDaiLy, d.MaLo, d.SoLuong, d.DonGia, d.TongTien,
-                           d.TrangThai, d.NgayTao, d.GhiChu,
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
                            n.HoTen AS TenNongDan,
-                           l.MaQR, s.TenSanPham
-                    FROM DonHangDaiLy d
-                    LEFT JOIN NongDan n ON d.MaNongDan = n.MaNongDan
-                    LEFT JOIN LoNongSan l ON d.MaLo = l.MaLo
-                    LEFT JOIN SanPham s ON l.MaSanPham = s.MaSanPham
-                    WHERE d.MaNongDan = @maNongDan
-                    ORDER BY d.NgayTao DESC", conn);
+                           dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    WHERE dd.MaNongDan = @maNongDan
+                    ORDER BY d.NgayDat DESC", conn);
 
                 cmd.Parameters.Add("@maNongDan", SqlDbType.Int).Value = maNongDan;
-
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
-
                 while (reader.Read())
                 {
                     list.Add(MapToDTO(reader));
                 }
-
-                _logger.LogInformation("Retrieved {Count} orders for farmer ID {FarmerId}", list.Count, maNongDan);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "SQL error occurred while getting orders for farmer ID {FarmerId}", maNongDan);
-                throw new Exception("Lỗi truy vấn cơ sở dữ liệu", ex);
+                _logger.LogError(ex, "SQL error getting orders by farmer ID {Id}", maNongDan);
+                throw;
             }
-
             return list;
         }
 
         public List<DonHangDaiLyDTO> GetByDaiLyId(int maDaiLy)
         {
             var list = new List<DonHangDaiLyDTO>();
-
             try
             {
                 using var conn = new SqlConnection(_connectionString);
                 using var cmd = new SqlCommand(@"
-                    SELECT d.MaDonHang, d.MaNongDan, d.MaDaiLy, d.MaLo, d.SoLuong, d.DonGia, d.TongTien,
-                           d.TrangThai, d.NgayTao, d.GhiChu,
+                    SELECT dd.MaDonHang, dd.MaDaiLy, dd.MaNongDan,
+                           d.LoaiDon, d.NgayDat, d.NgayGiao, d.TrangThai, 
+                           d.TongSoLuong, d.TongGiaTri, d.GhiChu,
                            n.HoTen AS TenNongDan,
-                           l.MaQR, s.TenSanPham
-                    FROM DonHangDaiLy d
-                    LEFT JOIN NongDan n ON d.MaNongDan = n.MaNongDan
-                    LEFT JOIN LoNongSan l ON d.MaLo = l.MaLo
-                    LEFT JOIN SanPham s ON l.MaSanPham = s.MaSanPham
-                    WHERE d.MaDaiLy = @maDaiLy
-                    ORDER BY d.NgayTao DESC", conn);
+                           dl.TenDaiLy
+                    FROM DonHangDaiLy dd
+                    INNER JOIN DonHang d ON dd.MaDonHang = d.MaDonHang
+                    LEFT JOIN NongDan n ON dd.MaNongDan = n.MaNongDan
+                    LEFT JOIN DaiLy dl ON dd.MaDaiLy = dl.MaDaiLy
+                    WHERE dd.MaDaiLy = @maDaiLy
+                    ORDER BY d.NgayDat DESC", conn);
 
                 cmd.Parameters.Add("@maDaiLy", SqlDbType.Int).Value = maDaiLy;
-
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
-
                 while (reader.Read())
                 {
                     list.Add(MapToDTO(reader));
                 }
-
-                _logger.LogInformation("Retrieved {Count} orders for agency ID {AgencyId}", list.Count, maDaiLy);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "SQL error occurred while getting orders for agency ID {AgencyId}", maDaiLy);
-                throw new Exception("Lỗi truy vấn cơ sở dữ liệu", ex);
+                _logger.LogError(ex, "SQL error getting orders by agency ID {Id}", maDaiLy);
+                throw;
             }
-
             return list;
         }
 
         public int Create(DonHangDaiLyCreateDTO dto)
         {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
             try
             {
-                decimal tongTien = dto.SoLuong * (dto.DonGia ?? 0);
-
-                using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand(@"
-                    INSERT INTO DonHangDaiLy (MaNongDan, MaDaiLy, MaLo, SoLuong, DonGia, TongTien, TrangThai, NgayTao, GhiChu)
+                // 1. Tạo DonHang trước
+                using var cmdDonHang = new SqlCommand(@"
+                    INSERT INTO DonHang (LoaiDon, NgayDat, NgayGiao, TrangThai, TongSoLuong, TongGiaTri, GhiChu)
                     OUTPUT INSERTED.MaDonHang
-                    VALUES (@MaNongDan, @MaDaiLy, @MaLo, @SoLuong, @DonGia, @TongTien, @TrangThai, GETDATE(), @GhiChu)", conn);
+                    VALUES (@LoaiDon, GETDATE(), @NgayGiao, N'cho_xu_ly', @TongSoLuong, @TongGiaTri, @GhiChu)", conn, transaction);
 
-                cmd.Parameters.Add("@MaNongDan", SqlDbType.Int).Value = dto.MaNongDan;
-                cmd.Parameters.Add("@MaDaiLy", SqlDbType.Int).Value = (object?)dto.MaDaiLy ?? DBNull.Value;
-                cmd.Parameters.Add("@MaLo", SqlDbType.Int).Value = dto.MaLo;
-                cmd.Parameters.Add("@SoLuong", SqlDbType.Decimal).Value = dto.SoLuong;
-                cmd.Parameters.Add("@DonGia", SqlDbType.Decimal).Value = (object?)dto.DonGia ?? DBNull.Value;
-                cmd.Parameters.Add("@TongTien", SqlDbType.Decimal).Value = tongTien;
-                cmd.Parameters.Add("@TrangThai", SqlDbType.NVarChar, 30).Value = "cho_xu_ly";
-                cmd.Parameters.Add("@GhiChu", SqlDbType.NVarChar, 255).Value = (object?)dto.GhiChu ?? DBNull.Value;
+                cmdDonHang.Parameters.Add("@LoaiDon", SqlDbType.NVarChar, 50).Value = (object?)dto.LoaiDon ?? "dai_ly";
+                cmdDonHang.Parameters.Add("@NgayGiao", SqlDbType.DateTime).Value = (object?)dto.NgayGiao ?? DBNull.Value;
+                cmdDonHang.Parameters.Add("@TongSoLuong", SqlDbType.Decimal).Value = (object?)dto.TongSoLuong ?? DBNull.Value;
+                cmdDonHang.Parameters.Add("@TongGiaTri", SqlDbType.Decimal).Value = (object?)dto.TongGiaTri ?? DBNull.Value;
+                cmdDonHang.Parameters.Add("@GhiChu", SqlDbType.NVarChar, 255).Value = (object?)dto.GhiChu ?? DBNull.Value;
 
-                conn.Open();
-                var newId = (int)cmd.ExecuteScalar()!;
+                var maDonHang = (int)cmdDonHang.ExecuteScalar()!;
 
-                _logger.LogInformation("Created new order with ID {OrderId}", newId);
-                return newId;
+                // 2. Tạo DonHangDaiLy
+                using var cmdDaiLy = new SqlCommand(@"
+                    INSERT INTO DonHangDaiLy (MaDonHang, MaDaiLy, MaNongDan)
+                    VALUES (@MaDonHang, @MaDaiLy, @MaNongDan)", conn, transaction);
+
+                cmdDaiLy.Parameters.Add("@MaDonHang", SqlDbType.Int).Value = maDonHang;
+                cmdDaiLy.Parameters.Add("@MaDaiLy", SqlDbType.Int).Value = dto.MaDaiLy;
+                cmdDaiLy.Parameters.Add("@MaNongDan", SqlDbType.Int).Value = dto.MaNongDan;
+                cmdDaiLy.ExecuteNonQuery();
+
+                transaction.Commit();
+                _logger.LogInformation("Created order with ID {Id}", maDonHang);
+                return maDonHang;
             }
-            catch (SqlException ex)
+            catch (Exception ex)
             {
-                _logger.LogError(ex, "SQL error occurred while creating order: {@Order}", dto);
-
-                if (ex.Number == 547)
-                {
-                    throw new Exception("Mã nông dân hoặc mã lô không tồn tại trong hệ thống", ex);
-                }
-
-                throw new Exception("Lỗi tạo đơn hàng trong cơ sở dữ liệu", ex);
+                transaction.Rollback();
+                _logger.LogError(ex, "Error creating order");
+                throw;
             }
         }
 
@@ -213,65 +196,52 @@ namespace NongDanService.Data
             try
             {
                 using var conn = new SqlConnection(_connectionString);
-                
                 var updates = new List<string>();
-                var cmd = new SqlCommand();
-                cmd.Connection = conn;
+                var cmd = new SqlCommand { Connection = conn };
 
-                if (dto.SoLuong.HasValue)
+                if (dto.LoaiDon != null)
                 {
-                    updates.Add("SoLuong = @SoLuong");
-                    cmd.Parameters.Add("@SoLuong", SqlDbType.Decimal).Value = dto.SoLuong.Value;
+                    updates.Add("LoaiDon = @LoaiDon");
+                    cmd.Parameters.Add("@LoaiDon", SqlDbType.NVarChar, 50).Value = dto.LoaiDon;
                 }
-
-                if (dto.DonGia.HasValue)
+                if (dto.NgayGiao.HasValue)
                 {
-                    updates.Add("DonGia = @DonGia");
-                    cmd.Parameters.Add("@DonGia", SqlDbType.Decimal).Value = dto.DonGia.Value;
+                    updates.Add("NgayGiao = @NgayGiao");
+                    cmd.Parameters.Add("@NgayGiao", SqlDbType.DateTime).Value = dto.NgayGiao.Value;
                 }
-
                 if (dto.TrangThai != null)
                 {
                     updates.Add("TrangThai = @TrangThai");
                     cmd.Parameters.Add("@TrangThai", SqlDbType.NVarChar, 30).Value = dto.TrangThai;
                 }
-
+                if (dto.TongSoLuong.HasValue)
+                {
+                    updates.Add("TongSoLuong = @TongSoLuong");
+                    cmd.Parameters.Add("@TongSoLuong", SqlDbType.Decimal).Value = dto.TongSoLuong.Value;
+                }
+                if (dto.TongGiaTri.HasValue)
+                {
+                    updates.Add("TongGiaTri = @TongGiaTri");
+                    cmd.Parameters.Add("@TongGiaTri", SqlDbType.Decimal).Value = dto.TongGiaTri.Value;
+                }
                 if (dto.GhiChu != null)
                 {
                     updates.Add("GhiChu = @GhiChu");
                     cmd.Parameters.Add("@GhiChu", SqlDbType.NVarChar, 255).Value = dto.GhiChu;
                 }
 
-                // Recalculate TongTien if SoLuong or DonGia changed
-                if (dto.SoLuong.HasValue || dto.DonGia.HasValue)
-                {
-                    updates.Add("TongTien = ISNULL(@SoLuong, SoLuong) * ISNULL(@DonGia, DonGia)");
-                }
+                if (updates.Count == 0) return true;
 
-                if (updates.Count == 0)
-                {
-                    return true;
-                }
-
-                cmd.CommandText = $"UPDATE DonHangDaiLy SET {string.Join(", ", updates)} WHERE MaDonHang = @Id";
+                cmd.CommandText = $"UPDATE DonHang SET {string.Join(", ", updates)} WHERE MaDonHang = @Id";
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
 
                 conn.Open();
-                var rowsAffected = cmd.ExecuteNonQuery();
-
-                if (rowsAffected > 0)
-                {
-                    _logger.LogInformation("Updated order with ID {OrderId}", id);
-                    return true;
-                }
-
-                _logger.LogWarning("No order found with ID {OrderId} to update", id);
-                return false;
+                return cmd.ExecuteNonQuery() > 0;
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "SQL error occurred while updating order with ID {OrderId}", id);
-                throw new Exception("Lỗi cập nhật đơn hàng trong cơ sở dữ liệu", ex);
+                _logger.LogError(ex, "SQL error updating order {Id}", id);
+                throw;
             }
         }
 
@@ -281,54 +251,47 @@ namespace NongDanService.Data
             {
                 using var conn = new SqlConnection(_connectionString);
                 using var cmd = new SqlCommand(
-                    "UPDATE DonHangDaiLy SET TrangThai = @TrangThai WHERE MaDonHang = @Id", conn);
+                    "UPDATE DonHang SET TrangThai = @TrangThai WHERE MaDonHang = @Id", conn);
 
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
                 cmd.Parameters.Add("@TrangThai", SqlDbType.NVarChar, 30).Value = trangThai;
 
                 conn.Open();
-                var rowsAffected = cmd.ExecuteNonQuery();
-
-                if (rowsAffected > 0)
-                {
-                    _logger.LogInformation("Updated status of order {OrderId} to {Status}", id, trangThai);
-                    return true;
-                }
-
-                return false;
+                return cmd.ExecuteNonQuery() > 0;
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "SQL error occurred while updating order status");
-                throw new Exception("Lỗi cập nhật trạng thái đơn hàng", ex);
+                _logger.LogError(ex, "SQL error updating order status");
+                throw;
             }
         }
 
         public bool Delete(int id)
         {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
             try
             {
-                using var conn = new SqlConnection(_connectionString);
-                using var cmd = new SqlCommand("DELETE FROM DonHangDaiLy WHERE MaDonHang = @id", conn);
+                // Xóa DonHangDaiLy trước
+                using var cmd1 = new SqlCommand("DELETE FROM DonHangDaiLy WHERE MaDonHang = @id", conn, transaction);
+                cmd1.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                cmd1.ExecuteNonQuery();
 
-                cmd.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                // Xóa DonHang
+                using var cmd2 = new SqlCommand("DELETE FROM DonHang WHERE MaDonHang = @id", conn, transaction);
+                cmd2.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                var result = cmd2.ExecuteNonQuery() > 0;
 
-                conn.Open();
-                var rowsAffected = cmd.ExecuteNonQuery();
-
-                if (rowsAffected > 0)
-                {
-                    _logger.LogInformation("Deleted order with ID {OrderId}", id);
-                    return true;
-                }
-
-                _logger.LogWarning("No order found with ID {OrderId} to delete", id);
-                return false;
+                transaction.Commit();
+                return result;
             }
-            catch (SqlException ex)
+            catch (Exception ex)
             {
-                _logger.LogError(ex, "SQL error occurred while deleting order with ID {OrderId}", id);
-                throw new Exception("Lỗi xóa đơn hàng trong cơ sở dữ liệu", ex);
+                transaction.Rollback();
+                _logger.LogError(ex, "Error deleting order {Id}", id);
+                throw;
             }
         }
 
@@ -336,19 +299,18 @@ namespace NongDanService.Data
         {
             return new DonHangDaiLyDTO
             {
-                MaDonHang = reader.GetInt32("MaDonHang"),
-                MaNongDan = reader.GetInt32("MaNongDan"),
-                MaDaiLy = reader.IsDBNull("MaDaiLy") ? null : reader.GetInt32("MaDaiLy"),
-                MaLo = reader.IsDBNull("MaLo") ? null : reader.GetInt32("MaLo"),
-                SoLuong = reader.IsDBNull("SoLuong") ? null : reader.GetDecimal("SoLuong"),
-                DonGia = reader.IsDBNull("DonGia") ? null : reader.GetDecimal("DonGia"),
-                TongTien = reader.IsDBNull("TongTien") ? null : reader.GetDecimal("TongTien"),
-                TrangThai = reader.IsDBNull("TrangThai") ? null : reader.GetString("TrangThai"),
-                NgayTao = reader.IsDBNull("NgayTao") ? null : reader.GetDateTime("NgayTao"),
-                GhiChu = reader.IsDBNull("GhiChu") ? null : reader.GetString("GhiChu"),
-                TenNongDan = reader.IsDBNull("TenNongDan") ? null : reader.GetString("TenNongDan"),
-                TenSanPham = reader.IsDBNull("TenSanPham") ? null : reader.GetString("TenSanPham"),
-                MaQR = reader.IsDBNull("MaQR") ? null : reader.GetString("MaQR")
+                MaDonHang = reader.GetInt32(reader.GetOrdinal("MaDonHang")),
+                MaDaiLy = reader.IsDBNull(reader.GetOrdinal("MaDaiLy")) ? null : reader.GetInt32(reader.GetOrdinal("MaDaiLy")),
+                MaNongDan = reader.IsDBNull(reader.GetOrdinal("MaNongDan")) ? null : reader.GetInt32(reader.GetOrdinal("MaNongDan")),
+                LoaiDon = reader.IsDBNull(reader.GetOrdinal("LoaiDon")) ? null : reader.GetString(reader.GetOrdinal("LoaiDon")),
+                NgayDat = reader.IsDBNull(reader.GetOrdinal("NgayDat")) ? null : reader.GetDateTime(reader.GetOrdinal("NgayDat")),
+                NgayGiao = reader.IsDBNull(reader.GetOrdinal("NgayGiao")) ? null : reader.GetDateTime(reader.GetOrdinal("NgayGiao")),
+                TrangThai = reader.IsDBNull(reader.GetOrdinal("TrangThai")) ? null : reader.GetString(reader.GetOrdinal("TrangThai")),
+                TongSoLuong = reader.IsDBNull(reader.GetOrdinal("TongSoLuong")) ? null : reader.GetDecimal(reader.GetOrdinal("TongSoLuong")),
+                TongGiaTri = reader.IsDBNull(reader.GetOrdinal("TongGiaTri")) ? null : reader.GetDecimal(reader.GetOrdinal("TongGiaTri")),
+                GhiChu = reader.IsDBNull(reader.GetOrdinal("GhiChu")) ? null : reader.GetString(reader.GetOrdinal("GhiChu")),
+                TenNongDan = reader.IsDBNull(reader.GetOrdinal("TenNongDan")) ? null : reader.GetString(reader.GetOrdinal("TenNongDan")),
+                TenDaiLy = reader.IsDBNull(reader.GetOrdinal("TenDaiLy")) ? null : reader.GetString(reader.GetOrdinal("TenDaiLy"))
             };
         }
     }
