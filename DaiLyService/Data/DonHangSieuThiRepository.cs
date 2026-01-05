@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using DaiLyService.Models.DTOs;
+using System.Data;
 
 namespace DaiLyService.Data
 {
@@ -17,15 +18,8 @@ namespace DaiLyService.Data
             var list = new List<DonHangSieuThiDTO>();
 
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                SELECT dh.MaDonHang, dhs.MaSieuThi, st.TenSieuThi, dhs.MaDaiLy,
-                       dh.NgayDat, dh.NgayGiao, dh.TrangThai, dh.TongSoLuong, dh.TongGiaTri, dh.GhiChu
-                FROM DonHang dh
-                INNER JOIN DonHangSieuThi dhs ON dh.MaDonHang = dhs.MaDonHang
-                LEFT JOIN SieuThi st ON dhs.MaSieuThi = st.MaSieuThi
-                WHERE dhs.MaDaiLy = @MaDaiLy
-                ORDER BY dh.NgayDat DESC", conn);
-
+            using var cmd = new SqlCommand("sp_DonHangSieuThi_GetByMaDaiLy", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
 
             conn.Open();
@@ -44,14 +38,8 @@ namespace DaiLyService.Data
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
 
-            using var cmd = new SqlCommand(@"
-                SELECT dh.MaDonHang, dhs.MaSieuThi, st.TenSieuThi, dhs.MaDaiLy,
-                       dh.NgayDat, dh.NgayGiao, dh.TrangThai, dh.TongSoLuong, dh.TongGiaTri, dh.GhiChu
-                FROM DonHang dh
-                INNER JOIN DonHangSieuThi dhs ON dh.MaDonHang = dhs.MaDonHang
-                LEFT JOIN SieuThi st ON dhs.MaSieuThi = st.MaSieuThi
-                WHERE dh.MaDonHang = @MaDonHang", conn);
-
+            using var cmd = new SqlCommand("sp_DonHangSieuThi_GetById", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDonHang", maDonHang);
 
             DonHangSieuThiDTO? donHang = null;
@@ -74,12 +62,8 @@ namespace DaiLyService.Data
         public bool UpdateTrangThai(int maDonHang, DonHangSieuThiUpdateDTO dto)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                UPDATE DonHang
-                SET TrangThai = COALESCE(@TrangThai, TrangThai),
-                    NgayGiao = COALESCE(@NgayGiao, NgayGiao),
-                    GhiChu = COALESCE(@GhiChu, GhiChu)
-                WHERE MaDonHang = @MaDonHang", conn);
+            using var cmd = new SqlCommand("sp_DonHang_UpdateTrangThai", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.AddWithValue("@MaDonHang", maDonHang);
             cmd.Parameters.AddWithValue("@TrangThai", (object?)dto.TrangThai ?? DBNull.Value);
@@ -94,13 +78,8 @@ namespace DaiLyService.Data
         {
             var list = new List<ChiTietDonHangDTO>();
 
-            using var cmd = new SqlCommand(@"
-                SELECT ct.MaLo, sp.TenSanPham, ct.SoLuong, ct.DonGia, ct.ThanhTien
-                FROM ChiTietDonHang ct
-                LEFT JOIN LoNongSan lo ON ct.MaLo = lo.MaLo
-                LEFT JOIN SanPham sp ON lo.MaSanPham = sp.MaSanPham
-                WHERE ct.MaDonHang = @MaDonHang", conn);
-
+            using var cmd = new SqlCommand("sp_ChiTietDonHang_GetByMaDonHang", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDonHang", maDonHang);
 
             using var reader = cmd.ExecuteReader();
