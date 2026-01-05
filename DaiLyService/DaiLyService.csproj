@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DbHelper\DbHelper.csproj" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.6" />
   </ItemGroup>
 
 </Project>
