@@ -1,9 +1,11 @@
+<!DOCTYPE html>
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập</title>
     <link rel="stylesheet" href="Dangnhap.css">
-    <script src="AuthHelper.js" defer></script>
+    <script src="../js/globalvar.js"></script>
     <script src="Dangnhap.js" defer></script>
 </head>
 <body>
@@ -18,7 +20,7 @@
                 <div class="form-group">
                     <label>Loại tài khoản</label>
                     <div class="input-group">
-                        <img src="/Hinhanh/loaitk.png" alt="Account Type" class="input-icon">
+                        <img src="../Hinhanh/loaitk.png" alt="Account Type" class="input-icon">
                         <select class="form-control" id="accountType" required>
                             <option value="">Chọn loại tài khoản</option>
                             <option value="admin">Admin</option>
@@ -32,7 +34,7 @@
                 <div class="form-group">
                     <label>Tên đăng nhập</label>
                     <div class="input-group">
-                        <img src="/Hinhanh/login.png" alt="Username" class="input-icon">
+                        <img src="../Hinhanh/login.png" alt="Username" class="input-icon">
                         <input type="text" class="form-control" id="loginUsername" placeholder="Nhập tên đăng nhập" required>
                     </div>
                 </div>
@@ -40,7 +42,7 @@
                 <div class="form-group">
                     <label>Mật khẩu</label>
                     <div class="input-group">
-                        <img src="/Hinhanh/out.png" alt="Password" class="input-icon">
+                        <img src="../Hinhanh/out.png" alt="Password" class="input-icon">
                         <input type="password" class="form-control" id="loginPassword" placeholder="Nhập mật khẩu" required>
                     </div>
                 </div>
@@ -55,3 +57,4 @@
         </div>
     </div>
 </body>
+</html>
