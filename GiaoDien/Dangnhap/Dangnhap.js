@@ -1,34 +1,6 @@
-// ========== LOCALSTORAGE HELPERS ==========
-function loadUsers() {
-    return JSON.parse(localStorage.getItem('users') || '[]');
-}
-
-function saveUsers(users) {
-    localStorage.setItem('users', JSON.stringify(users));
-}
-
-function initializeDefaultUsers() {
-    const existing = loadUsers();
-    if (existing.length > 0) return; // already initialized
-    
-        const defaultUsers = [
-        { id: 1, role: 'admin', username: 'admin', password: 'admin123', fullName: 'Admin' },
-        { id: 2, role: 'nongdan', username: 'user', password: '123', fullName: 'Nông dân', maNong: 'ND001' },
-        { id: 3, role: 'daily', username: 'daily1', password: 'pass123', fullName: 'Đại lý 1', maDaiLy: 'DL001' },
-        { id: 4, role: 'sieuthi', username: 'sieuthi1', password: 'pass123', fullName: 'Siêu thị 1' }
-    ];
-    saveUsers(defaultUsers);
-}
-
-function findUser(accountType, username, password) {
-    const users = loadUsers();
-    return users.find(u => u.role === accountType && u.username === username && u.password === password);
-}
+// ========== ĐĂNG NHẬP - KẾT NỐI API ==========
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize default users on first load
-    initializeDefaultUsers();
-
     const loginForm = document.getElementById('loginForm');
     const loginAlert = document.getElementById('loginAlert');
 
@@ -44,44 +16,72 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Check if user exists and credentials match
-        const userExists = findUser(accountType, username, password);
-
-        if (userExists) {
-            // Store current logged-in user in sessionStorage for page-to-page access
-            if (typeof AuthHelper === 'undefined') {
-                // Fallback nếu AuthHelper chưa load
-                sessionStorage.setItem('currentUser', JSON.stringify(userExists));
-            } else {
-                AuthHelper.setCurrentUser(userExists);
-            }
-            showAlert('Đăng nhập thành công!', 'success');
-            // Redirect based on account type
-            setTimeout(() => {
-                let redirectUrl = '../Nongdan/Nongdan.html';
-                if (typeof AuthHelper !== 'undefined') {
-                    redirectUrl = AuthHelper.getHomeFolder(accountType);
-                } else {
-                    const redirects = {
-                        admin: '../Admin/Admin.html',
-                        nongdan: '../Nongdan/Nongdan.html',
-                        daily: '../Daily/Daily.html',
-                        sieuthi: '../Sieuthi/Sieuthi.html'
-                    };
-                    redirectUrl = redirects[accountType] || '../Nongdan/Nongdan.html';
-                }
-                window.location.href = redirectUrl;
-            }, 1000);
-        } else {
-            showAlert('Tên đăng nhập hoặc mật khẩu không đúng!', 'error');
-        }
+        // Gọi API login
+        login(username, password, accountType);
     });
 
+    function login(username, password, accountType) {
+        // Tạo FormData để gửi
+        var formData = new FormData();
+        formData.append('TenDangNhap', username);
+        formData.append('MatKhau', password);
+
+        fetch(current_url + '/api/login', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Kiểm tra loại tài khoản có khớp không
+            if (data.LoaiTaiKhoan !== accountType) {
+                showAlert('Loại tài khoản không đúng!', 'error');
+                return;
+            }
+
+            // Lưu thông tin user vào localStorage
+            var userInfo = {
+                MaTaiKhoan: data.MaTaiKhoan,
+                TenDangNhap: data.TenDangNhap,
+                LoaiTaiKhoan: data.LoaiTaiKhoan,
+                Token: data.Token
+            };
+            localStorage.setItem('currentUser', JSON.stringify(userInfo));
+            sessionStorage.setItem('currentUser', JSON.stringify(userInfo));
+
+            showAlert('Đăng nhập thành công!', 'success');
+
+            // Redirect theo loại tài khoản
+            setTimeout(() => {
+                var redirectUrl = getRedirectUrl(accountType);
+                window.location.href = redirectUrl;
+            }, 1000);
+        })
+        .catch(error => {
+            console.error('Login error:', error);
+            var msg = error.error || 'Tên đăng nhập hoặc mật khẩu không đúng!';
+            showAlert(msg, 'error');
+        });
+    }
+
+    function getRedirectUrl(accountType) {
+        var redirects = {
+            admin: '../Admin/Admin.html',
+            nongdan: '../Nongdan/Nongdan.html',
+            daily: '../Daily/Daily.html',
+            sieuthi: '../Sieuthi/Sieuthi.html'
+        };
+        return redirects[accountType] || '../Trangchu/index.html';
+    }
+
     function showAlert(message, type) {
-        loginAlert.className = `alert ${type} show`;
+        loginAlert.className = 'alert ' + type + ' show';
         loginAlert.textContent = message;
         
-        // Auto hide alert after 5 seconds
         setTimeout(() => {
             loginAlert.classList.remove('show');
         }, 5000);
