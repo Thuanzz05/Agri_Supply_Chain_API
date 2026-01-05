@@ -14,50 +14,6 @@ var API = {
         delete: (id) => current_url + `/api-nongdan/nong-dan/delete/${id}`
     },
     
-    // Sản Phẩm (NongDan Service)
-    sanPham: {
-        getAll: current_url + "/api-nongdan/san-pham/get-all",
-        getById: (id) => current_url + `/api-nongdan/san-pham/get-by-id/${id}`,
-        create: current_url + "/api-nongdan/san-pham/create",
-        update: (id) => current_url + `/api-nongdan/san-pham/update/${id}`,
-        delete: (id) => current_url + `/api-nongdan/san-pham/delete/${id}`
-    },
-    
-    // Trang Trại (NongDan Service)
-    trangTrai: {
-        getAll: current_url + "/api-nongdan/trang-trai/get-all",
-        getById: (id) => current_url + `/api-nongdan/trang-trai/get-by-id/${id}`,
-        getByNongDan: (id) => current_url + `/api-nongdan/trang-trai/get-by-nong-dan/${id}`,
-        create: current_url + "/api-nongdan/trang-trai/create",
-        update: (id) => current_url + `/api-nongdan/trang-trai/update/${id}`,
-        delete: (id) => current_url + `/api-nongdan/trang-trai/delete/${id}`
-    },
-    
-    // Lô Nông Sản (NongDan Service)
-    loNongSan: {
-        getAll: current_url + "/api-nongdan/lo-nong-san/get-all",
-        getById: (id) => current_url + `/api-nongdan/lo-nong-san/get-by-id/${id}`,
-        getByTrangTrai: (id) => current_url + `/api-nongdan/lo-nong-san/get-by-trang-trai/${id}`,
-        getByNongDan: (id) => current_url + `/api-nongdan/lo-nong-san/get-by-nong-dan/${id}`,
-        create: current_url + "/api-nongdan/lo-nong-san/create",
-        update: (id) => current_url + `/api-nongdan/lo-nong-san/update/${id}`,
-        delete: (id) => current_url + `/api-nongdan/lo-nong-san/delete/${id}`
-    },
-    
-    // Đơn Hàng Đại Lý - NongDan view (NongDan Service)
-    donHangNongDan: {
-        getAll: current_url + "/api-nongdan/don-hang-dai-ly/get-all",
-        getById: (id) => current_url + `/api-nongdan/don-hang-dai-ly/get-by-id/${id}`,
-        getByNongDan: (id) => current_url + `/api-nongdan/don-hang-dai-ly/get-by-nong-dan/${id}`,
-        getByDaiLy: (id) => current_url + `/api-nongdan/don-hang-dai-ly/get-by-dai-ly/${id}`,
-        create: current_url + "/api-nongdan/don-hang-dai-ly/create",
-        update: (id) => current_url + `/api-nongdan/don-hang-dai-ly/update/${id}`,
-        xacNhan: (id) => current_url + `/api-nongdan/don-hang-dai-ly/xac-nhan/${id}`,
-        xuatDon: (id) => current_url + `/api-nongdan/don-hang-dai-ly/xuat-don/${id}`,
-        huyDon: (id) => current_url + `/api-nongdan/don-hang-dai-ly/huy-don/${id}`,
-        delete: (id) => current_url + `/api-nongdan/don-hang-dai-ly/delete/${id}`
-    },
-    
     // Đại Lý Service
     daily: {
         getAll: current_url + "/api-daily/dai-ly/get-all",

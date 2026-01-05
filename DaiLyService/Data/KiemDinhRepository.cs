@@ -1,6 +1,5 @@
 using Microsoft.Data.SqlClient;
 using DaiLyService.Models.DTOs;
-using System.Data;
 
 namespace DaiLyService.Data
 {
@@ -18,8 +17,7 @@ namespace DaiLyService.Data
             var list = new List<KiemDinhDTO>();
 
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("sp_KiemDinh_GetAll", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using var cmd = new SqlCommand("SELECT * FROM KiemDinh", conn);
 
             conn.Open();
             using var reader = cmd.ExecuteReader();
@@ -35,8 +33,9 @@ namespace DaiLyService.Data
         public KiemDinhDTO? GetById(int maKiemDinh)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("sp_KiemDinh_GetById", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using var cmd = new SqlCommand(
+                "SELECT * FROM KiemDinh WHERE MaKiemDinh = @MaKiemDinh", conn);
+
             cmd.Parameters.AddWithValue("@MaKiemDinh", maKiemDinh);
 
             conn.Open();
@@ -52,8 +51,9 @@ namespace DaiLyService.Data
             var list = new List<KiemDinhDTO>();
 
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("sp_KiemDinh_GetByMaDaiLy", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using var cmd = new SqlCommand(
+                "SELECT * FROM KiemDinh WHERE MaDaiLy = @MaDaiLy", conn);
+
             cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
 
             conn.Open();
@@ -70,8 +70,10 @@ namespace DaiLyService.Data
         public int Create(KiemDinhCreateDTO dto)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("sp_KiemDinh_Create", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using var cmd = new SqlCommand(@"
+                INSERT INTO KiemDinh (MaLo, NguoiKiemDinh, MaDaiLy, MaSieuThi, KetQua, BienBan, ChuKySo, GhiChu)
+                OUTPUT INSERTED.MaKiemDinh
+                VALUES (@MaLo, @NguoiKiemDinh, @MaDaiLy, @MaSieuThi, @KetQua, @BienBan, @ChuKySo, @GhiChu)", conn);
 
             cmd.Parameters.AddWithValue("@MaLo", dto.MaLo);
             cmd.Parameters.AddWithValue("@NguoiKiemDinh", (object?)dto.NguoiKiemDinh ?? DBNull.Value);
@@ -82,23 +84,22 @@ namespace DaiLyService.Data
             cmd.Parameters.AddWithValue("@ChuKySo", (object?)dto.ChuKySo ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@GhiChu", (object?)dto.GhiChu ?? DBNull.Value);
 
-            var outputParam = new SqlParameter("@MaKiemDinh", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            cmd.Parameters.Add(outputParam);
-
             conn.Open();
-            cmd.ExecuteNonQuery();
-
-            return (int)outputParam.Value;
+            return (int)cmd.ExecuteScalar();
         }
 
         public bool Update(int maKiemDinh, KiemDinhUpdateDTO dto)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("sp_KiemDinh_Update", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using var cmd = new SqlCommand(@"
+                UPDATE KiemDinh
+                SET NguoiKiemDinh = @NguoiKiemDinh,
+                    KetQua = @KetQua,
+                    TrangThai = @TrangThai,
+                    BienBan = @BienBan,
+                    ChuKySo = @ChuKySo,
+                    GhiChu = @GhiChu
+                WHERE MaKiemDinh = @MaKiemDinh", conn);
 
             cmd.Parameters.AddWithValue("@MaKiemDinh", maKiemDinh);
             cmd.Parameters.AddWithValue("@NguoiKiemDinh", (object?)dto.NguoiKiemDinh ?? DBNull.Value);
@@ -115,8 +116,9 @@ namespace DaiLyService.Data
         public bool Delete(int maKiemDinh)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("sp_KiemDinh_Delete", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            using var cmd = new SqlCommand(
+                "DELETE FROM KiemDinh WHERE MaKiemDinh = @MaKiemDinh", conn);
+
             cmd.Parameters.AddWithValue("@MaKiemDinh", maKiemDinh);
 
             conn.Open();

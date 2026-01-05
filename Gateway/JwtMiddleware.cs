@@ -86,9 +86,6 @@ namespace Gateway
                 MaTaiKhoan = user.MaTaiKhoan,
                 TenDangNhap = user.TenDangNhap,
                 LoaiTaiKhoan = user.LoaiTaiKhoan,
-                MaNongDan = user.MaNongDan,
-                MaDaiLy = user.MaDaiLy,
-                HoTen = user.HoTen,
                 Token = tokenString
             };
 
@@ -112,42 +109,12 @@ namespace Gateway
 
             if (!reader.Read()) return null;
 
-            var user = new UserInfo
+            return new UserInfo
             {
                 MaTaiKhoan = (int)reader["MaTaiKhoan"],
                 TenDangNhap = reader["TenDangNhap"].ToString()!,
                 LoaiTaiKhoan = reader["LoaiTaiKhoan"].ToString()!
             };
-            
-            reader.Close();
-            
-            // Lấy thông tin chi tiết theo loại tài khoản
-            if (user.LoaiTaiKhoan == "nongdan")
-            {
-                using var cmdNongDan = new SqlCommand(
-                    "SELECT MaNongDan, HoTen FROM NongDan WHERE MaTaiKhoan = @MaTaiKhoan", conn);
-                cmdNongDan.Parameters.AddWithValue("@MaTaiKhoan", user.MaTaiKhoan);
-                using var readerND = cmdNongDan.ExecuteReader();
-                if (readerND.Read())
-                {
-                    user.MaNongDan = (int)readerND["MaNongDan"];
-                    user.HoTen = readerND["HoTen"]?.ToString();
-                }
-            }
-            else if (user.LoaiTaiKhoan == "daily")
-            {
-                using var cmdDaiLy = new SqlCommand(
-                    "SELECT MaDaiLy, TenDaiLy FROM DaiLy WHERE MaTaiKhoan = @MaTaiKhoan", conn);
-                cmdDaiLy.Parameters.AddWithValue("@MaTaiKhoan", user.MaTaiKhoan);
-                using var readerDL = cmdDaiLy.ExecuteReader();
-                if (readerDL.Read())
-                {
-                    user.MaDaiLy = (int)readerDL["MaDaiLy"];
-                    user.HoTen = readerDL["TenDaiLy"]?.ToString();
-                }
-            }
-            
-            return user;
         }
     }
 
@@ -156,8 +123,5 @@ namespace Gateway
         public int MaTaiKhoan { get; set; }
         public string TenDangNhap { get; set; } = string.Empty;
         public string LoaiTaiKhoan { get; set; } = string.Empty;
-        public int? MaNongDan { get; set; }
-        public int? MaDaiLy { get; set; }
-        public string? HoTen { get; set; }
     }
 }

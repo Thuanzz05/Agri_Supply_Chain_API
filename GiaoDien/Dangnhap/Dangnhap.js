@@ -48,9 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 MaTaiKhoan: data.MaTaiKhoan,
                 TenDangNhap: data.TenDangNhap,
                 LoaiTaiKhoan: data.LoaiTaiKhoan,
-                MaNongDan: data.MaNongDan,
-                MaDaiLy: data.MaDaiLy,
-                HoTen: data.HoTen,
                 Token: data.Token
             };
             localStorage.setItem('currentUser', JSON.stringify(userInfo));
