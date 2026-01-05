@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using DaiLyService.Models.DTOs;
+using System.Data;
 
 namespace DaiLyService.Data
 {
@@ -17,11 +18,8 @@ namespace DaiLyService.Data
             var list = new List<DaiLyPhanHoi>();
 
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                SELECT d.MaDaiLy, d.TenDaiLy, d.SoDienThoai, d.Email, d.DiaChi,
-                       t.TenDangNhap, t.TrangThai
-                FROM DaiLy d
-                LEFT JOIN TaiKhoan t ON d.MaTaiKhoan = t.MaTaiKhoan", conn);
+            using var cmd = new SqlCommand("sp_DaiLy_GetAll", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
 
             conn.Open();
             using var reader = cmd.ExecuteReader();
@@ -37,13 +35,8 @@ namespace DaiLyService.Data
         public DaiLyPhanHoi? GetById(int maDaiLy)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                SELECT d.MaDaiLy, d.TenDaiLy, d.SoDienThoai, d.Email, d.DiaChi,
-                       t.TenDangNhap, t.TrangThai
-                FROM DaiLy d
-                LEFT JOIN TaiKhoan t ON d.MaTaiKhoan = t.MaTaiKhoan
-                WHERE d.MaDaiLy = @MaDaiLy", conn);
-
+            using var cmd = new SqlCommand("sp_DaiLy_GetById", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
 
             conn.Open();
@@ -57,57 +50,33 @@ namespace DaiLyService.Data
         public int Create(DaiLyTaoMoi dto)
         {
             using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand("sp_DaiLy_Create", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            cmd.Parameters.AddWithValue("@TenDangNhap", dto.TenDangNhap);
+            cmd.Parameters.AddWithValue("@MatKhau", dto.MatKhau);
+            cmd.Parameters.AddWithValue("@TenDaiLy", dto.TenDaiLy);
+            cmd.Parameters.AddWithValue("@SoDienThoai", (object?)dto.SoDienThoai ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Email", (object?)dto.Email ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@DiaChi", (object?)dto.DiaChi ?? DBNull.Value);
+
+            var outputParam = new SqlParameter("@MaDaiLy", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
+            cmd.Parameters.Add(outputParam);
+
             conn.Open();
+            cmd.ExecuteNonQuery();
 
-            using var transaction = conn.BeginTransaction();
-
-            try
-            {
-                // 1. Tạo TaiKhoan trước
-                using var cmdTaiKhoan = new SqlCommand(@"
-                    INSERT INTO TaiKhoan (TenDangNhap, MatKhau, LoaiTaiKhoan)
-                    OUTPUT INSERTED.MaTaiKhoan
-                    VALUES (@TenDangNhap, @MatKhau, 'daily')", conn, transaction);
-
-                cmdTaiKhoan.Parameters.AddWithValue("@TenDangNhap", dto.TenDangNhap);
-                cmdTaiKhoan.Parameters.AddWithValue("@MatKhau", dto.MatKhau);
-
-                int maTaiKhoan = (int)cmdTaiKhoan.ExecuteScalar();
-
-                // 2. Tạo DaiLy với MaTaiKhoan vừa tạo
-                using var cmdDaiLy = new SqlCommand(@"
-                    INSERT INTO DaiLy (MaTaiKhoan, TenDaiLy, SoDienThoai, Email, DiaChi)
-                    OUTPUT INSERTED.MaDaiLy
-                    VALUES (@MaTaiKhoan, @TenDaiLy, @SoDienThoai, @Email, @DiaChi)", conn, transaction);
-
-                cmdDaiLy.Parameters.AddWithValue("@MaTaiKhoan", maTaiKhoan);
-                cmdDaiLy.Parameters.AddWithValue("@TenDaiLy", dto.TenDaiLy);
-                cmdDaiLy.Parameters.AddWithValue("@SoDienThoai", (object?)dto.SoDienThoai ?? DBNull.Value);
-                cmdDaiLy.Parameters.AddWithValue("@Email", (object?)dto.Email ?? DBNull.Value);
-                cmdDaiLy.Parameters.AddWithValue("@DiaChi", (object?)dto.DiaChi ?? DBNull.Value);
-
-                int maDaiLy = (int)cmdDaiLy.ExecuteScalar();
-
-                transaction.Commit();
-                return maDaiLy;
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
+            return (int)outputParam.Value;
         }
 
         public bool Update(int maDaiLy, DaiLyUpdateDTO dto)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                UPDATE DaiLy
-                SET TenDaiLy = @TenDaiLy,
-                    SoDienThoai = @SoDienThoai,
-                    Email = @Email,
-                    DiaChi = @DiaChi
-                WHERE MaDaiLy = @MaDaiLy", conn);
+            using var cmd = new SqlCommand("sp_DaiLy_Update", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
             cmd.Parameters.AddWithValue("@TenDaiLy", dto.TenDaiLy);
@@ -122,9 +91,8 @@ namespace DaiLyService.Data
         public bool Delete(int maDaiLy)
         {
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(
-                "DELETE FROM DaiLy WHERE MaDaiLy = @MaDaiLy", conn);
-
+            using var cmd = new SqlCommand("sp_DaiLy_Delete", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@MaDaiLy", maDaiLy);
 
             conn.Open();
@@ -136,13 +104,8 @@ namespace DaiLyService.Data
             var list = new List<DaiLyPhanHoi>();
 
             using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                SELECT d.MaDaiLy, d.TenDaiLy, d.SoDienThoai, d.Email, d.DiaChi,
-                       t.TenDangNhap, t.TrangThai
-                FROM DaiLy d
-                LEFT JOIN TaiKhoan t ON d.MaTaiKhoan = t.MaTaiKhoan
-                WHERE (@TenDaiLy IS NULL OR d.TenDaiLy LIKE '%' + @TenDaiLy + '%')
-                  AND (@SoDienThoai IS NULL OR d.SoDienThoai LIKE '%' + @SoDienThoai + '%')", conn);
+            using var cmd = new SqlCommand("sp_DaiLy_Search", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.AddWithValue("@TenDaiLy", (object?)tenDaiLy ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@SoDienThoai", (object?)soDienThoai ?? DBNull.Value);
