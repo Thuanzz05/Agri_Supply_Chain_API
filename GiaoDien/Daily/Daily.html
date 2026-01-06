@@ -1,288 +1,256 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" ng-app="DaiLyApp">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đại lý</title>
+    <title>Đại lý - Quản lý</title>
     <link rel="stylesheet" href="Daily.css">
-    <script src="../Dangnhap/AuthHelper.js" defer></script>
-    <script src="Daily.js" defer></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="../js/globalvar.js"></script>
+    <script src="Daily.js"></script>
 </head>
-<body>
+<body ng-controller="DaiLyCtrl">
     <aside class="sidebar">
         <div class="sidebar-header">
-            <div id="user-info" style="display:flex;align-items:center;gap:8px;">
-                <span style="color:#673ab7;font-size:20px;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg></span>
-                <div id="current-user" style="font-weight:bold;"></div>
-                <div id="current-role"></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="color:#673ab7;font-size:20px;">👤</span>
+                <div style="font-weight:bold;">{{currentUser.tenDangNhap || 'Đại Lý'}}</div>
             </div>
         </div>
         <ul class="sidebar-menu">
-            <li><a href="#" class="menu-link active" data-section="dashboard"><span>Bảng điều khiển</span></a></li>
-            <li><a href="#" class="menu-link" data-section="orders"><span>Quản lý đơn hàng</span></a></li>
-            <li><a href="#" class="menu-link" data-section="inventory"><span>Quản lý Kho</span></a></li>
-            <li><a href="#" class="menu-link" data-section="quality"><span>Kiểm định Chất lượng</span></a></li>
-            <li><a href="#" class="menu-link" data-section="reports"><span>Báo cáo thống kê</span></a></li>
+            <li><a href="#" ng-click="showPage('dashboard')" ng-class="{'active': currentPage=='dashboard'}">Bảng điều khiển</a></li>
+            <li><a href="#" ng-click="showPage('donhang')" ng-class="{'active': currentPage=='donhang'}">Đơn hàng Nông Dân</a></li>
+            <li><a href="#" ng-click="showPage('donhangst')" ng-class="{'active': currentPage=='donhangst'}">Đơn hàng Siêu Thị</a></li>
+            <li><a href="#" ng-click="showPage('kho')" ng-class="{'active': currentPage=='kho'}">Quản lý Kho</a></li>
+            <li><a href="#" ng-click="showPage('kiemdinh')" ng-class="{'active': currentPage=='kiemdinh'}">Kiểm định</a></li>
             <li style="border-top:1px solid rgba(255,255,255,0.1);margin-top:10px;padding-top:10px;">
-                <a href="javascript:AuthHelper.logout()" class="menu-link"><span>Đăng xuất</span></a>
+                <a href="#" ng-click="logout()">Đăng xuất</a>
             </li>
         </ul>
     </aside>
 
     <main class="main-content">
         <!-- Dashboard -->
-        <section id="dashboard" class="page active-page">
+        <section ng-show="currentPage=='dashboard'" class="page">
             <div class="page-header">
                 <h2>Bảng điều khiển</h2>
-                <div class="header-actions">
-                    <button id="btn-new-order" class="btn">+ Nhập hàng</button>
-                </div>
             </div>
-
             <div class="kpis">
-                <div class="kpi">
-                    <h3 id="kpi-orders">0</h3>
-                    <p>Phiếu nhập</p>
-                </div>
-                <!-- Shipments KPI removed -->
-                <div class="kpi">
-                    <h3 id="kpi-inventory">0</h3>
-                    <p>Kho hàng</p>
-                </div>
-                <div class="kpi">
-                    <h3 id="kpi-quality">0</h3>
-                    <p>Cảnh báo chất lượng</p>
-                </div>
-            </div>
-
-            <div class="lists">
-                <div class="list">
-                    <h4>Đơn hàng gần đây</h4>
-                    <table id="table-orders" class="table">
-                        <thead><tr><th>MãPhiếu</th><th>MãLô — Sản phẩm</th><th>SL</th><th>Kho</th><th>Ngày</th><th>Trạng thái</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <div class="list">
-                    <h4>Cảnh báo chất lượng</h4>
-                    <table id="table-quality-alerts" class="table">
-                        <thead><tr><th>ID</th><th>Lô hàng</th><th>Vấn đề</th><th>Ngày</th><th>Mức độ</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
+                <div class="kpi"><h3>{{listDonHangDaiLy.length}}</h3><p>Đơn hàng Nông Dân</p></div>
+                <div class="kpi"><h3>{{listDonHangSieuThi.length}}</h3><p>Đơn hàng Siêu Thị</p></div>
+                <div class="kpi"><h3>{{listKho.length}}</h3><p>Kho hàng</p></div>
+                <div class="kpi"><h3>{{listKiemDinh.length}}</h3><p>Kiểm định</p></div>
             </div>
         </section>
 
-        <!-- Orders: unified page with internal toggle between Import receipts and Retail orders -->
-        <section id="orders" class="page">
+        <!-- Đơn hàng Nông Dân -->
+        <section ng-show="currentPage=='donhang'" class="page">
             <div class="page-header">
-                <h2>Quản lý Đơn hàng</h2>
-                <button id="btn-create-order" class="btn">+ Tạo phiếu nhập</button>
+                <h2>Đơn hàng từ Nông Dân</h2>
             </div>
-
-            <div class="orders-toggle" style="margin:10px 0;display:flex;gap:8px;">
-                <button id="tab-orders-import" class="btn small active">Nhập hàng</button>
-                <button id="tab-orders-retail" class="btn small">Xuất hàng</button>
-            </div>
-
-            <div id="orders-import" class="orders-panel">
-                <table id="table-orders-all" class="table">
-                    <thead><tr><th>MãPhiếu</th><th>MãLô — Sản phẩm</th><th>SốLượng</th><th>Nông dân</th><th>KhoNhập</th><th>NgàyNhập</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-
-            <div id="orders-retail" class="orders-panel" style="display:none;">
-                <h4>Đơn hàng từ Siêu thị</h4>
-                <table id="table-retail-incoming" class="table">
-                    <thead><tr><th>MãPhiếu</th><th>MãLô — Sản phẩm</th><th>SốLượng</th><th>Siêu thị</th><th>Ngày tạo</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Xuất hàng page removed (internal kho export feature deleted) -->
-
-        <!-- Inventory -->
-        <section id="inventory" class="page">
-            <div class="page-header">
-                <h2>Quản lý Kho</h2>
-            </div>
-            
-            <!-- Tab buttons removed (import/export toggle) -->
-
-            <!-- Nhập hàng (Import) -->
-            <div id="content-nhap-hang" class="tab-content" style="display: block;">
-                <div class="page-header" style="margin-bottom: 16px;">
-                    <div></div>
-                    <button id="btn-add-nhap-hang" class="btn">+ Thêm kho nhập</button>
-                </div>
-                <div class="lists">
-                    <div class="list" style="grid-column: 1/-1;">
-                        <h4>Danh sách kho nhập hàng</h4>
-                        <table id="table-kho" class="table">
-                            <thead><tr><th>MãKho</th><th>TênKho</th><th>ĐịaChỉ</th><th>SĐT</th><th>Hành động</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                    <div class="list" style="grid-column: 1/-1;">
-                        <h4>Tồn kho hiện tại (theo lô sản phẩm)</h4>
-                        <table id="table-inventory" class="table">
-                            <thead><tr><th>MãLô</th><th>Sản phẩm</th><th>Số lượng</th><th>Ngày nhập</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Internal export UI removed -->
-        </section>
-
-        <!-- Quality -->
-        <section id="quality" class="page">
-            <div class="page-header">
-                <h2>Kiểm định Chất lượng</h2>
-            </div>
-            <table id="table-quality" class="table">
-                <thead><tr><th>ID</th><th>Lô hàng</th><th>Ngày kiểm</th><th>Người kiểm</th><th>Kết quả</th><th>Ghi chú</th><th>Hành động</th></tr></thead>
-                <tbody></tbody>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Mã ĐH</th>
+                        <th>Nông Dân</th>
+                        <th>Ngày đặt</th>
+                        <th>Ngày giao</th>
+                        <th>Tổng SL</th>
+                        <th>Tổng giá trị</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="dh in listDonHangDaiLy">
+                        <td>{{dh.maDonHang}}</td>
+                        <td>{{dh.tenNongDan}}</td>
+                        <td>{{dh.ngayDat | date:'dd/MM/yyyy'}}</td>
+                        <td>{{dh.ngayGiao | date:'dd/MM/yyyy'}}</td>
+                        <td>{{dh.tongSoLuong}}</td>
+                        <td>{{dh.tongGiaTri | number}} VNĐ</td>
+                        <td>{{dh.trangThai}}</td>
+                        <td>
+                            <button class="btn small" ng-click="updateTrangThaiDonHangDaiLy(dh.maDonHang, 'da_nhan')">Đã nhận</button>
+                            <button class="btn small btn-danger" ng-click="deleteDonHangDaiLy(dh.maDonHang)">Xóa</button>
+                        </td>
+                    </tr>
+                    <tr ng-if="listDonHangDaiLy.length == 0">
+                        <td colspan="8" style="text-align:center;">Không có dữ liệu</td>
+                    </tr>
+                </tbody>
             </table>
         </section>
 
-        <!-- Reports -->
-        <section id="reports" class="page">
+        <!-- Đơn hàng Siêu Thị -->
+        <section ng-show="currentPage=='donhangst'" class="page">
             <div class="page-header">
-                <h2>Báo cáo thống kê</h2>
+                <h2>Đơn hàng từ Siêu Thị</h2>
             </div>
-            <div class="report-cards">
-                <div class="report-card">
-                    <i class="fas fa-dolly"></i>
-                    <h4>Tổng đơn hàng</h4>
-                    <div id="report-orders">—</div>
-                </div>
-                <div class="report-card">
-                    <i class="fas fa-truck"></i>
-                    <h4>Đã xuất hàng</h4>
-                    <div id="report-shipped">—</div>
-                </div>
-                <div class="report-card">
-                    <i class="fas fa-boxes"></i>
-                    <h4>Tồn kho</h4>
-                    <div id="report-stock">—</div>
-                </div>
-                <div class="report-card">
-                    <i class="fas fa-check-circle"></i>
-                    <h4>Đạt chất lượng</h4>
-                    <div id="report-quality">—</div>
-                </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Mã ĐH</th>
+                        <th>Siêu Thị</th>
+                        <th>Ngày đặt</th>
+                        <th>Ngày giao</th>
+                        <th>Tổng SL</th>
+                        <th>Tổng giá trị</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="dh in listDonHangSieuThi">
+                        <td>{{dh.maDonHang}}</td>
+                        <td>{{dh.tenSieuThi}}</td>
+                        <td>{{dh.ngayDat | date:'dd/MM/yyyy'}}</td>
+                        <td>{{dh.ngayGiao | date:'dd/MM/yyyy'}}</td>
+                        <td>{{dh.tongSoLuong}}</td>
+                        <td>{{dh.tongGiaTri | number}} VNĐ</td>
+                        <td>{{dh.trangThai}}</td>
+                        <td>
+                            <button class="btn small" ng-click="updateTrangThaiDonHangSieuThi(dh.maDonHang, 'dang_giao')">Đang giao</button>
+                            <button class="btn small" ng-click="updateTrangThaiDonHangSieuThi(dh.maDonHang, 'da_giao')">Đã giao</button>
+                        </td>
+                    </tr>
+                    <tr ng-if="listDonHangSieuThi.length == 0">
+                        <td colspan="8" style="text-align:center;">Không có dữ liệu</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Quản lý Kho -->
+        <section ng-show="currentPage=='kho'" class="page">
+            <div class="page-header">
+                <h2>Quản lý Kho</h2>
+                <button class="btn" ng-click="openModal('kho')">+ Thêm Kho</button>
             </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Mã Kho</th>
+                        <th>Loại Kho</th>
+                        <th>Tên Kho</th>
+                        <th>Địa chỉ</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="k in listKho">
+                        <td>{{k.maKho}}</td>
+                        <td>{{k.loaiKho}}</td>
+                        <td>{{k.tenKho}}</td>
+                        <td>{{k.diaChi}}</td>
+                        <td>{{k.trangThai}}</td>
+                        <td>{{k.ngayTao | date:'dd/MM/yyyy'}}</td>
+                        <td>
+                            <button class="btn small" ng-click="editKho(k)">Sửa</button>
+                            <button class="btn small btn-danger" ng-click="deleteKho(k.maKho)">Xóa</button>
+                        </td>
+                    </tr>
+                    <tr ng-if="listKho.length == 0">
+                        <td colspan="7" style="text-align:center;">Không có dữ liệu</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Kiểm định -->
+        <section ng-show="currentPage=='kiemdinh'" class="page">
+            <div class="page-header">
+                <h2>Kiểm định Chất lượng</h2>
+                <button class="btn" ng-click="openModal('kiemdinh')">+ Thêm Kiểm định</button>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Mã KĐ</th>
+                        <th>Mã Lô</th>
+                        <th>Người kiểm định</th>
+                        <th>Ngày kiểm định</th>
+                        <th>Kết quả</th>
+                        <th>Trạng thái</th>
+                        <th>Ghi chú</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="kd in listKiemDinh">
+                        <td>{{kd.maKiemDinh}}</td>
+                        <td>{{kd.maLo}}</td>
+                        <td>{{kd.nguoiKiemDinh}}</td>
+                        <td>{{kd.ngayKiemDinh | date:'dd/MM/yyyy'}}</td>
+                        <td>{{kd.ketQua}}</td>
+                        <td>{{kd.trangThai}}</td>
+                        <td>{{kd.ghiChu}}</td>
+                        <td>
+                            <button class="btn small" ng-click="editKiemDinh(kd)">Sửa</button>
+                            <button class="btn small btn-danger" ng-click="deleteKiemDinh(kd.maKiemDinh)">Xóa</button>
+                        </td>
+                    </tr>
+                    <tr ng-if="listKiemDinh.length == 0">
+                        <td colspan="8" style="text-align:center;">Không có dữ liệu</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
     </main>
-
-    <template id="create-order-template">
-        <form id="createOrderFormModal" class="modal-form">
-            <h3>Nhập hàng từ Nông dân</h3>
-            
-            <label>Mã phiếu nhập (MãPhiếu)</label>
-            <input name="orderId" type="text" placeholder="vd: PN001" required />
-
-            <label>Mã lô (MãLô)</label>
-            <input name="batchCode" type="text" placeholder="vd: LO001" required />
-
-            <label>Số lượng (SốLượng)</label>
-            <input name="quantity" type="number" min="1" placeholder="Số lượng" required />
-
-            <label>Nông dân (MãNông)</label>
-            <select name="farmerId">
-                <option value="">-- Chọn nông dân --</option>
-            </select>
-            <input name="fromAddressManual" type="text" placeholder="Tên hoặc địa chỉ nông dân (nhập tay)" style="display:none;margin-top:8px;" />
-
-            <label>Loại hàng (Sản phẩm)</label>
-            <select name="product" disabled>
-                <option value="">-- Chọn nông dân trước --</option>
-            </select>
-            <input name="productManual" type="text" placeholder="Loại hàng (nhập tay)" style="display:none;margin-top:8px;" />
-
-            <label>Kho nhập (KhoNhập)</label>
-            <select name="toAddress" required>
-                <option value="">-- Chọn kho nhập --</option>
-            </select>
-
-            <label>Ngày nhập (NgàyNhập)</label>
-            <input name="date" type="date" required />
-
-            <label>Ghi chú (GhiChú)</label>
-            <input name="ghichu" type="text" placeholder="Ghi chú thêm (tùy chọn)" />
-
-            <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-                <button type="button" class="btn cancel modal-close-btn">Hủy</button>
-                <button type="submit" class="btn">Nhập hàng</button>
-            </div>
-        </form>
-    </template>
-
-    <template id="warehouse-template">
-        <form id="createKhoFormModal" class="modal-form">
-            <h3>Thêm / Sửa Kho</h3>
-            <label>Mã kho</label>
-            <input name="maKho" type="text" placeholder="vd: KHO01" />
-
-            <label>Tên kho</label>
-            <input name="tenKho" type="text" placeholder="Tên kho" required />
-
-            <label>Địa chỉ</label>
-            <input name="diaChi" type="text" placeholder="Địa chỉ" />
-
-            <label>Số điện thoại</label>
-            <input name="soDienThoai" type="text" placeholder="Số điện thoại" />
-
-            <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-                <button type="button" class="btn cancel modal-close-btn">Hủy</button>
-                <button type="submit" class="btn">Lưu kho</button>
-            </div>
-        </form>
-    </template>
-
-    <template id="quality-template">
-        <form id="createQualityFormModal" class="modal-form">
-            <h3>Thêm phiếu kiểm định</h3>
-            <label>Mã kiểm định</label>
-            <input name="maKiemDinh" type="text" placeholder="vd: KD001" />
-
-            <label>Mã lô</label>
-            <input name="maLo" type="text" placeholder="Mã lô (vd: LO1001)" />
-
-            <label>Ngày kiểm</label>
-            <input name="ngayKiem" type="date" />
-
-            <label>Người kiểm</label>
-            <input name="nguoiKiem" type="text" placeholder="Người kiểm" />
-
-            <label>Kết quả</label>
-            <select name="ketQua">
-                <option value="Đạt">Đạt</option>
-                <option value="Không đạt">Không đạt</option>
-                <option value="Yêu cầu bổ sung">Yêu cầu bổ sung</option>
-            </select>
-
-            <label>Ghi chú</label>
-            <input name="ghiChu" type="text" placeholder="Ghi chú (tùy chọn)" />
-
-            <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-                <button type="button" class="btn cancel modal-close-btn">Hủy</button>
-                <button type="submit" class="btn">Lưu kiểm định</button>
-            </div>
-        </form>
-    </template>
 
     <!-- Modal -->
     <div id="modal" class="modal hidden">
         <div class="modal-content">
-            <button class="modal-close">&times;</button>
-            <div id="modal-body"></div>
+            <button class="modal-close" ng-click="closeModal()">&times;</button>
+            <div id="modal-body">
+                <!-- Form Kho -->
+                <form ng-show="currentModal=='kho'" class="modal-form" ng-submit="saveKho()">
+                    <h3>{{isEditKho ? 'Sửa Kho' : 'Thêm Kho'}}</h3>
+                    <label>Loại kho</label>
+                    <select ng-model="formKho.loaiKho" required>
+                        <option value="daily">Đại lý</option>
+                        <option value="sieuthi">Siêu thị</option>
+                    </select>
+                    <label>Tên kho</label>
+                    <input type="text" ng-model="formKho.tenKho" placeholder="Tên kho" required />
+                    <label>Địa chỉ</label>
+                    <input type="text" ng-model="formKho.diaChi" placeholder="Địa chỉ" />
+                    <label>Mã Đại Lý</label>
+                    <input type="number" ng-model="formKho.maDaiLy" placeholder="Mã đại lý" />
+                    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+                        <button type="button" class="btn cancel" ng-click="closeModal()">Hủy</button>
+                        <button type="submit" class="btn">Lưu</button>
+                    </div>
+                </form>
+
+                <!-- Form Kiểm định -->
+                <form ng-show="currentModal=='kiemdinh'" class="modal-form" ng-submit="saveKiemDinh()">
+                    <h3>{{isEditKiemDinh ? 'Sửa Kiểm định' : 'Thêm Kiểm định'}}</h3>
+                    <label>Mã Lô</label>
+                    <input type="number" ng-model="formKiemDinh.maLo" placeholder="Mã lô" required />
+                    <label>Người kiểm định</label>
+                    <input type="text" ng-model="formKiemDinh.nguoiKiemDinh" placeholder="Người kiểm định" />
+                    <label>Mã Đại Lý</label>
+                    <input type="number" ng-model="formKiemDinh.maDaiLy" placeholder="Mã đại lý" />
+                    <label>Kết quả</label>
+                    <select ng-model="formKiemDinh.ketQua" required>
+                        <option value="dat">Đạt</option>
+                        <option value="khong_dat">Không đạt</option>
+                        <option value="cho_xu_ly">Chờ xử lý</option>
+                    </select>
+                    <label>Biên bản</label>
+                    <textarea ng-model="formKiemDinh.bienBan" placeholder="Biên bản kiểm định"></textarea>
+                    <label>Ghi chú</label>
+                    <input type="text" ng-model="formKiemDinh.ghiChu" placeholder="Ghi chú" />
+                    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+                        <button type="button" class="btn cancel" ng-click="closeModal()">Hủy</button>
+                        <button type="submit" class="btn">Lưu</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-
 </body>
 </html>
