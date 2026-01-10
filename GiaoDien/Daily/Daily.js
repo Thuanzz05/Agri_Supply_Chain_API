@@ -1,9 +1,8 @@
-// ========== DAILY.JS - Kết nối với DaiLyService API ==========
 var app = angular.module('DaiLyApp', []);
 
 app.controller('DaiLyCtrl', function($scope, $http) {
     
-    // ========== BIẾN DỮ LIỆU ==========
+    // BIẾN DỮ LIỆU
     $scope.currentUser = null;
     $scope.listDaiLy = [];
     $scope.listKho = [];
@@ -11,13 +10,13 @@ app.controller('DaiLyCtrl', function($scope, $http) {
     $scope.listDonHangDaiLy = [];
     $scope.listDonHangSieuThi = [];
     
-    // Form data
+    //Form data
     $scope.formDaiLy = {};
     $scope.formKho = {};
     $scope.formKiemDinh = {};
     $scope.formDonHang = {};
     
-    // ========== KHỞI TẠO ==========
+    //KHỞI TẠO
     $scope.init = function() {
         $scope.loadCurrentUser();
         $scope.loadDaiLy();
@@ -34,7 +33,7 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         }
     };
 
-    // ========== ĐẠI LÝ ==========
+    //ĐẠI LÝ
     $scope.loadDaiLy = function() {
         $http({
             method: 'GET',
@@ -47,7 +46,7 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         });
     };
     
-    // ========== KHO ==========
+    //KHO
     $scope.loadKho = function() {
         $http({
             method: 'GET',
@@ -114,7 +113,7 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         $scope.openModal('kho');
     };
 
-    // ========== KIỂM ĐỊNH ==========
+    //KIỂM ĐỊNH 
     $scope.loadKiemDinh = function() {
         $http({
             method: 'GET',
@@ -181,7 +180,7 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         $scope.openModal('kiemdinh');
     };
 
-    // ========== ĐƠN HÀNG ĐẠI LÝ (Mua từ Nông Dân) ==========
+    // ĐƠN HÀNG ĐẠI LÝ (Mua từ Nông Dân)
     $scope.loadDonHangDaiLy = function() {
         $http({
             method: 'GET',
@@ -240,11 +239,11 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         });
     };
 
-    // ========== ĐƠN HÀNG SIÊU THỊ (Bán cho Siêu Thị) ==========
+    //ĐƠN HÀNG SIÊU THỊ (Bán cho Siêu Thị)
     $scope.loadDonHangSieuThi = function() {
         $http({
             method: 'GET',
-            url: API.donHangSieuThiDaily.getByMaDaiLy(1) // TODO: lấy maDaiLy từ currentUser
+            url: API.donHangSieuThiDaily.getByMaDaiLy(1) //lấy maDaiLy từ currentUser
         }).then(function(response) {
             $scope.listDonHangSieuThi = response.data;
             console.log('Loaded DonHangSieuThi:', $scope.listDonHangSieuThi);
@@ -268,10 +267,11 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         });
     };
     
-    // ========== MODAL ==========
+    //MODAL
     $scope.currentModal = '';
     $scope.isEditKho = false;
     $scope.isEditKiemDinh = false;
+    $scope.isEditDonHang = false;
     
     $scope.openModal = function(type) {
         $scope.currentModal = type;
@@ -286,6 +286,7 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         $scope.formDonHang = {};
         $scope.isEditKho = false;
         $scope.isEditKiemDinh = false;
+        $scope.isEditDonHang = false;
     };
     
     $scope.saveKho = function() {
@@ -304,14 +305,45 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         }
     };
     
-    // ========== NAVIGATION ==========
+    $scope.saveDonHangDaiLy = function() {
+        if ($scope.isEditDonHang) {
+            $scope.updateDonHangDaiLy($scope.formDonHang.maDonHang);
+        } else {
+            $scope.createDonHangDaiLy();
+        }
+    };
+    
+    $scope.editDonHangDaiLy = function(donHang) {
+        $scope.formDonHang = angular.copy(donHang);
+        $scope.isEditDonHang = true;
+        $scope.openModal('donhangdaily');
+    };
+    
+    $scope.updateDonHangDaiLy = function(maDonHang) {
+        $http({
+            method: 'PUT',
+            url: API.donHangDaiLy.update(maDonHang),
+            data: $scope.formDonHang,
+            headers: { 'Content-Type': 'application/json' }
+        }).then(function(response) {
+            alert('Cập nhật đơn hàng thành công!');
+            $scope.loadDonHangDaiLy();
+            $scope.formDonHang = {};
+            $scope.closeModal();
+        }).catch(function(error) {
+            console.error('Error updating DonHangDaiLy:', error);
+            alert('Lỗi cập nhật đơn hàng: ' + (error.data || error.statusText));
+        });
+    };
+    
+    // NAVIGATION
     $scope.currentPage = 'dashboard';
     
     $scope.showPage = function(page) {
         $scope.currentPage = page;
     };
     
-    // ========== LOGOUT ==========
+    //LOGOUT 
     $scope.logout = function() {
         sessionStorage.removeItem('currentUser');
         window.location.href = '../Dangnhap/Dangnhap.html';
