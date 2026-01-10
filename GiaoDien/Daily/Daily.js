@@ -271,6 +271,7 @@ app.controller('DaiLyCtrl', function($scope, $http) {
     $scope.currentModal = '';
     $scope.isEditKho = false;
     $scope.isEditKiemDinh = false;
+    $scope.isEditDonHang = false;
     
     $scope.openModal = function(type) {
         $scope.currentModal = type;
@@ -285,6 +286,7 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         $scope.formDonHang = {};
         $scope.isEditKho = false;
         $scope.isEditKiemDinh = false;
+        $scope.isEditDonHang = false;
     };
     
     $scope.saveKho = function() {
@@ -301,6 +303,37 @@ app.controller('DaiLyCtrl', function($scope, $http) {
         } else {
             $scope.createKiemDinh();
         }
+    };
+    
+    $scope.saveDonHangDaiLy = function() {
+        if ($scope.isEditDonHang) {
+            $scope.updateDonHangDaiLy($scope.formDonHang.maDonHang);
+        } else {
+            $scope.createDonHangDaiLy();
+        }
+    };
+    
+    $scope.editDonHangDaiLy = function(donHang) {
+        $scope.formDonHang = angular.copy(donHang);
+        $scope.isEditDonHang = true;
+        $scope.openModal('donhangdaily');
+    };
+    
+    $scope.updateDonHangDaiLy = function(maDonHang) {
+        $http({
+            method: 'PUT',
+            url: API.donHangDaiLy.update(maDonHang),
+            data: $scope.formDonHang,
+            headers: { 'Content-Type': 'application/json' }
+        }).then(function(response) {
+            alert('Cập nhật đơn hàng thành công!');
+            $scope.loadDonHangDaiLy();
+            $scope.formDonHang = {};
+            $scope.closeModal();
+        }).catch(function(error) {
+            console.error('Error updating DonHangDaiLy:', error);
+            alert('Lỗi cập nhật đơn hàng: ' + (error.data || error.statusText));
+        });
     };
     
     // NAVIGATION
